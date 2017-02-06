@@ -1,0 +1,21 @@
+# dsmtools
+#### ArcGIS Toolbox containing a series of tools used for working with ocean data.
+
+The scripts here underpin much of the research we've done into distribution modelling for deep-sea species, fetch calculations, and some other code working with data from tropical regions. However, saying that and seascapes. The tools are largely maintained by Andy Davies of Bangor University. All tools are released under the MIT License.
+
+The tools are loosely grouped into the following:
+
+* Data Tools
+  * Tools for downloading, organising and extracting spatial data.
+
+* Deep-sea SDM Tools
+  * Specific tools for working with vertically gridded datasets, at least three (xy, z(depth)) but sometimes four dimensional (xy, z(depth) and t(time)).
+
+* Generic Tools
+  * Theese tools are largely for batch processing of multiple files, and some linking scripts to popular tools such as Maxent.
+
+* Intertidal Tools
+  * These tools are focussed on shallow water species and patterns.
+
+* Terrain Tools
+  * Tools for calculating terrain parameters from bathymetric data.
