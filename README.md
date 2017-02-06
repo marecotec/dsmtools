@@ -19,3 +19,5 @@ The tools are loosely grouped into the following:
 
 * Terrain Tools
   * Tools for calculating terrain parameters from bathymetric data.
+
+  The development of this resource was supported by the SponGES project, which has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 679849.
