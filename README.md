@@ -23,4 +23,6 @@ The tools are loosely grouped into the following:
 #### Instructions
 You can run these scripts in standalone mode, through Pycharm project or as an ArcGIS Toolbox with a GUI (add to ArcToolBox, and navigate to your required tool).
 
+#### Funding
+
 The development of this resource was supported by the SponGES project, which has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 679849.
