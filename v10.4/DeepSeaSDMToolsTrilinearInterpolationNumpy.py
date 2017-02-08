@@ -270,11 +270,25 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                             temp_depth.append(depth)
                             counter += 1
 
+                    if z_min == z_max:
+                        key = -1
+                        for t_pair in env_file_list:
+                            key += 1
+                            name, depth = t_pair
+                            if depth <= z_min:
+                                key2 = key
+                                if counter == 1:
+                                    v1, v2 = env_file_list[key]
+                                    temp_name.append(v1)
+                                    temp_depth.append(v2)
+                                    del v1, v2
+                                counter += 1
+
                     if key2 < key:
-                        v1, v2 = env_file_list[key2 + 1]
-                        temp_name.append(v1)
-                        temp_depth.append(v2)
-                        del v1, v2
+                            v1, v2 = env_file_list[key2 + 1]
+                            temp_name.append(v1)
+                            temp_depth.append(v2)
+                            del v1, v2
 
                     temp_depth_reverse = temp_depth[::-1]
 

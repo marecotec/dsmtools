@@ -31,9 +31,10 @@ class Toolbox(object):
         self.label = "Deep-sea Modelling Tools"
         self.alias = "dsmtools"
         self.description = """
-                The dsmtools ArcGIS Toolbox contains a series of tools used for modelling in the ocean.
-                The scripts here underpin much of the research into global distrubution of deep-sea species,
-                but are likely applicable to a variety of different land and seascapes. The tools are largely
+                The dsmtools ArcGIS Toolbox contains a series of tools used for working with ocean data.
+                The scripts here underpin much of the research into global distribution modelling for deep-sea species,
+                fetch calculations, and some other code working with data from tropical regions. However, saying that
+                most are likely applicable to a variety of different land and seascapes. The tools are largely
                 written and maintained by Andy Davies of Bangor University. All tools are released under the MIT
                 License.
 
