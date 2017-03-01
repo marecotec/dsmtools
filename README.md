@@ -6,7 +6,7 @@ The scripts here underpin much of the research we've done into distribution mode
 The tools are loosely grouped into the following:
 
 * Data Tools
-  * Tools for downloading, organising and extracting spatial data.
+  * Tools for downloading, organising, extracting and converting spatial data.
 
 * Deep-sea SDM Tools
   * Specific tools for working with vertically gridded datasets, at least three (xy, z(depth)) but sometimes four dimensional (xy, z(depth) and t(time)).
