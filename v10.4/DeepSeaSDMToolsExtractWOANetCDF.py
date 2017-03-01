@@ -22,11 +22,9 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
 
     def __init__(self):
         self.label = "Extract depth layers for variables from World Ocean Atlas NetCDF files"
-        self.description = """To use the cookie cutting approach of Davies & Guinotte (2011), we
-               need to extract z-layers from our environmental data layers, which are usually encapsulated
-               in NetCDF files. Cite this paper if you use this approach or script.
-               Davies, A.J. & Guinotte, J.M. (2011) "Global Habitat Suitability for
-               Framework-Forming Cold-Water Corals." PLoS ONE 6(4): e18483. doi:10.1371/journal.pone.0018483"""
+        self.description = """To use the cookie cutting approach of Davies & Guinotte (2011) or the trilinear
+               interpolation, we first need to extract z-layers from our environmental data layers, which are usually
+               encapsulated in NetCDF files."""
         self.canRunInBackground = True
         self.category = "Deep-sea SDM Tools"  # Use your own category here, or an existing one.
 
@@ -39,7 +37,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_woa_netcdf.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\woa13_decav_s00_01v2.nc"
+        input_woa_netcdf.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Raw_NetCDF\Decadal_Average\woa13_decav_t00_04v2.nc"
         params.append(input_woa_netcdf)
 
         variable_name = arcpy.Parameter(displayName="Variable",
@@ -47,7 +45,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                         datatype="GPString",
                                         parameterType="Required",
                                         direction="Input")
-        variable_name.value = "s_an"
+        variable_name.value = "t_an"
         params.append(variable_name)
 
         depths = arcpy.Parameter(name="depths",
@@ -85,7 +83,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                             parameterType="Required",
                                             direction="Input",
                                             )
-        extraction_extent.value = "-190 -100 190 100"
+        extraction_extent.value = "-185 -95 185 95"
         #extraction_extent.value = "-16 55 -13 57"
         params.append(extraction_extent)
 
@@ -95,7 +93,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                               parameterType="Required",
                                               direction="Output",
                                               )
-        temporary_directory.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Temporary\/"
+        temporary_directory.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Gridded_Quarter\Temp/"
         params.append(temporary_directory)
 
         output_directory = arcpy.Parameter(name="output_directory",
@@ -104,7 +102,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                            parameterType="Required",
                                            direction="Output",
                                            )
-        output_directory.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Output_Sal_Buffer\/"
+        output_directory.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Gridded_Quarter\/"
         params.append(output_directory)
 
         coordinate_system = arcpy.Parameter(name="coordinate_system",
@@ -317,6 +315,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                     master.columns = ["x", "y"]
                     master = np.round(master, 4)
                     master.to_pickle(os.path.join(output_directory, "Projected_yxz", "xy_coords.pkl"))
+                    master.to_pickle(os.path.join(output_directory, "Projected", "xy_coords.pkl"))
                     del master
                     gc.collect()
                     master_z = df[["z"]].copy()

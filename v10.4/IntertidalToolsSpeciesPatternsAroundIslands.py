@@ -19,39 +19,25 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
         # You can define a tool to have no parameters
         params = []
 
-        # Input Island Points
-        input_points = arcpy.Parameter(name="input_points",
-                                       displayName="Input Feature Class",
+        # Input Island Line - Demarks the area in which we will spatially bootstrap
+        input_line = arcpy.Parameter(name="input_line_folder",
+                                       displayName="Input Island Line",
                                        datatype="DEFeatureClass",
-                                       parameterType="Optional",  # Required|Optional|Derived
-                                       direction="Input",  # Input|Output
-                                       )
-        # You can set filters here for example input_fc.filter.list = ["Polygon"]
-        # You can set a default if you want -- this makes debugging a little easier.
-        input_points.value = "E:/2016/Corals/IndividualIslands/KUR_2004.shp"
-        params.append(input_points)  # ..and then add it to the list of defined parameters
-
-        # Input Island Points
-        input_directory = arcpy.Parameter(name="input_directory",
-                                       displayName="Input Directory",
-                                       datatype="DEFeatureClass",
-                                       parameterType="Optional",  # Required|Optional|Derived
-                                       direction="Input",  # Input|Output
-                                       )
-        # You can set filters here for example input_fc.filter.list = ["Polygon"]
-        # You can set a default if you want -- this makes debugging a little easier.
-        input_directory.value = ""
-        params.append(input_directory)  # ..and then add it to the list of defined parameters
-
-
-        points_order = arcpy.Parameter(name="points_order",
-                                       displayName="Are your points in FID order?",
-                                       datatype="GPBoolean",
                                        parameterType="Required",
                                        direction="Input",
                                        )
-        points_order.value = "False"
-        params.append(points_order)
+        input_line.value = "E:/2016/Corals/IndividualIslands_ByYear_Lines/PAL_2008.shp"
+        params.append(input_line)
+
+        # Input Island Points - Original points that will be sampled by the spatial bootstrap
+        input_points = arcpy.Parameter(name="input_points",
+                                       displayName="Input Island Points",
+                                       datatype="DEFeatureClass",
+                                       parameterType="Required",
+                                       direction="Input",
+                                       )
+        input_points.value = "E:/2016/Corals/IndividualIslands_ByYear_Points/PAL_2008.shp"
+        params.append(input_points)
 
         # Select attribute column for the calculation
         attribute_process = arcpy.Parameter(name="attribute_1",
@@ -59,36 +45,38 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                                       datatype="Field",
                                       parameterType="Required",
                                       direction="Input")
-        # Derived parameter
-        attribute_process.parameterDependencies = [input_points.name]
-        attribute_process.value = "MACROALGAE"
+        #attribute_process.value = "CORAL,CCA,MACROALGAE"
+        attribute_process.value = "CORAL,CCA,MACROALGAE"
         params.append(attribute_process)
 
-        # Distance to draw polygon
+        # Select attribute column for the calculation
+        flag_field = arcpy.Parameter(name="attribute_1",
+                                      displayName="Flag field",
+                                      datatype="Field",
+                                      parameterType="Required",
+                                      direction="Input")
+        # Derived parameter
+        flag_field.parameterDependencies = [input_points.name]
+        flag_field.value = "Flag"
+        params.append(flag_field)
+
+        # Distance to draw polygon - in metres
         distance = arcpy.Parameter(name="distance",
-                                   displayName="Distance to capture coastline",
+                                   displayName="Distance to capture sample points",
                                    datatype="GPDouble",
-                                   parameterType="Required", # Required|Optional|Derived
-                                   direction="Input", # Input|Output
+                                   parameterType="Required",
+                                   direction="Input",
                                    )
-        # You could set a list of acceptable values here for example
-        # number.filter.type = "ValueList"
-        # number.filter.list = [1,2,3,123]
-        # You can set a default value here.
         distance.value = 100000
         params.append(distance)
 
-        # Angle to capture patterns
+        # Angle to capture patterns within circle - in degrees
         angle = arcpy.Parameter(name="angle",
                                  displayName="Angle for search",
                                  datatype="GPLong",
-                                 parameterType="Required", # Required|Optional|Derived
-                                 direction="Input", # Input|Output
+                                 parameterType="Required",
+                                 direction="Input",
                                 )
-        # You could set a list of acceptable values here for example
-        # number.filter.type = "ValueList"
-        # number.filter.list = [1,2,3,123]
-        # You can set a default value here.
         angle.value = 10
         params.append(angle)
 
@@ -96,10 +84,10 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
         output_directory = arcpy.Parameter(name="output_directory",
                                         displayName="Output directory",
                                         datatype="DEWorkspace",
-                                        parameterType="Optional",  # Required|Optional|Derived
-                                        direction="Output",  # Input|Output
+                                        parameterType="Optional",
+                                        direction="Output",
                                         )
-        output_directory.value = "E:/2016/Corals/Temp/"
+        output_directory.value = "E:/2016/Corals/Run/PAL_2008"
         params.append(output_directory)
 
         clean_up = arcpy.Parameter(name="clean_up",
@@ -123,73 +111,51 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
         return
 
     def execute(self, parameters, messages):
-        """The source code of your tool."""
         arcpy.env.overwriteOutput = True
+        arcpy.CheckOutExtension('Spatial')
         arcpy.AddMessage("Orientation of species distributions")
         for param in parameters:
             arcpy.AddMessage("Parameter: %s = %s" % (param.name, param.valueAsText))
 
-        # See http://resources.arcgis.com/en/help/main/10.2/index.html#//018z00000063000000
-        input_points = parameters[0].valueAsText
-        input_directory = parameters[1].valueAsText
-        points_order = parameters[2].valueAsText
-        attribute_process = parameters[3].value
+        # Read in variables for the tool
+        input_line = parameters[0].valueAsText
+        input_points = parameters[1].valueAsText
+        attribute_process = parameters[2].valueAsText
+        flag_field = parameters[3].valueAsText
         distance = parameters[4].value
         angle = parameters[5].value
         output_directory = parameters[6].valueAsText
         clean_up = parameters[7].valueAsText
 
-
         # Make output directory if it does not exist
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
-        featureclasses = []
+        arcpy.env.workspace = output_directory
 
-        if input_directory is None:
-            featureclasses.append(input_points)
-        elif input_directory is not None:
-            arcpy.env.workspace = input_directory
-            featureclasses = arcpy.ListFeatureClasses()
-            arcpy.env.workspace = output_directory
+        # 0 Describe files to set coordinate systems
+        desc_input = arcpy.Describe(input_points)
+        coord_system = desc_input.spatialReference
+        arcpy.env.outputCoordinateSystem = coord_system
 
-        for fc in featureclasses:
 
-            if input_directory is None:
-                input_points = fc
-            elif input_directory is not None:
-                input_points = os.path.join(input_directory, fc)
+        # 1 Convert island line to a polygon - numpy work around due to lack of license
 
-            # 0 Describe files to set coordinate systems
-            desc_input = arcpy.Describe(input_points)
-            coord_system = desc_input.spatialReference
-            arcpy.env.outputCoordinateSystem = coord_system
+        if not os.path.exists(os.path.join(output_directory, "Island_Poly.shp")):
+            def polygon_to_line_no_gap(input_line_, output_polygon):
+                array = arcpy.da.FeatureClassToNumPyArray(input_line_, ["SHAPE@X", "SHAPE@Y"], spatial_reference=coord_system, explode_to_points=True)
+                if array.size == 0:
+                    arcpy.AddError("Line has no features, check to ensure it is OK")
+                else:
+                    array2 = arcpy.Array()
+                    for x, y in array:
+                        pnt = arcpy.Point(x, y)
+                        array2.add(pnt)
+                    polygon = arcpy.Polygon(array2)
+                    arcpy.CopyFeatures_management(polygon, output_polygon)
+                return
 
-            # 1 Generate an Island Polygon from our input points, intersect it with a fishnet and then keep only
-            # polygons within the Island polygon.
-
-            if points_order == "false":
-                arcpy.AddMessage("Calculating convex hull for " + os.path.splitext(os.path.basename(input_points))[0] + ".")
-                arcpy.MinimumBoundingGeometry_management(in_features=input_points,
-                                                         out_feature_class=os.path.join(output_directory,"Island_Poly.shp"),
-                                                         geometry_type="CONVEX_HULL",
-                                                         group_option="ALL",
-                                                         group_field="",
-                                                         mbg_fields_option="NO_MBG_FIELDS"
-                                                         )
-
-            if points_order == "true":
-                arcpy.AddMessage("Joining points for " + os.path.splitext(os.path.basename(input_points))[0] + ".")
-                arcpy.PointsToLine_management(Input_Features=input_points,
-                                              Output_Feature_Class=os.path.join(output_directory,"Island_Line.shp"),
-                                              Line_Field="",
-                                              Sort_Field="FID",
-                                              Close_Line="CLOSE")
-                arcpy.FeatureToPolygon_management(in_features=os.path.join(output_directory,"Island_Line.shp"),
-                                                  out_feature_class=os.path.join(output_directory,"Island_Poly.shp"),
-                                                  cluster_tolerance="",
-                                                  attributes="NO_ATTRIBUTES",
-                                                  label_features="")
+            polygon_to_line_no_gap(input_line, os.path.join(output_directory, "Island_Poly.shp"))
 
             # 2 Create Fishnet for random sampling of points within the cells of the net
             extent = arcpy.Describe(input_points).extent
@@ -206,7 +172,7 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
             island_area_polygon = sqrt(island_area * 0.1) * 100
 
             arcpy.AddMessage(
-                "....fishnet size is: " + str(island_area_polygon) + ".")
+                "....fishnet size is: " + str(island_area_polygon) + " m.")
 
             arcpy.CreateFishnet_management(out_feature_class=os.path.join(output_directory,"Fishnet.shp"),
                                            origin_coord=origin_coord,
@@ -250,6 +216,7 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                                   where_clause=where
                                   )
 
+            # 3 Create n random points within the cells of the fishnet
             arcpy.CreateRandomPoints_management(out_path=output_directory,
                                                 out_name="RndPts.shp",
                                                 constraining_feature_class=os.path.join(output_directory,"FishClipInner.shp"),
@@ -261,37 +228,37 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
 
             arcpy.DefineProjection_management(os.path.join(output_directory,"RndPts.shp"), coord_system)
 
-            # 3 Create area polygons
-            arcpy.DefineProjection_management(os.path.join(output_directory,"RndPts.shp"), coord_system)
-            rows = arcpy.SearchCursor(os.path.join(output_directory,"RndPts.shp"))
-            desc = arcpy.Describe(os.path.join(output_directory,"RndPts.shp"))
-            shapefieldname = desc.ShapeFieldName
+        else:
+            arcpy.AddMessage("....skipping building polygons as they already exist")
 
-            featureclass = os.path.join(output_directory,"SectorPoly.shp")
+        # 3 Create spatial bootstrapping circle polygons
+        rows = arcpy.SearchCursor(os.path.join(output_directory,"RndPts.shp"))
+        desc = arcpy.Describe(os.path.join(output_directory,"RndPts.shp"))
+        shapefieldname = desc.ShapeFieldName
 
-            if not arcpy.Exists(featureclass):
-                arcpy.CreateFeatureclass_management(os.path.dirname(featureclass), os.path.basename(featureclass), "Polygon")
-                arcpy.AddField_management(featureclass, str("FID_Fishne"), "TEXT", "", "", "150")
-                arcpy.AddField_management(featureclass, "BEARING", "SHORT", "", "", "4")
-                arcpy.DeleteField_management(featureclass, ["Id"])
-                arcpy.DefineProjection_management(featureclass, coord_system)
+        if not os.path.exists(os.path.join(output_directory,"SectorPoly.shp")):
+            arcpy.AddMessage("....now conducting spatial bootstrap.")
+
+            featureclass = os.path.join(output_directory, "SectorPoly.shp")
+            arcpy.CreateFeatureclass_management(os.path.dirname(featureclass), os.path.basename(featureclass), "Polygon")
+            arcpy.AddField_management(featureclass, str("FID_Fishne"), "TEXT", "", "", "150")
+            arcpy.AddField_management(featureclass, "BEARING", "SHORT", "", "", "4")
+            arcpy.DeleteField_management(featureclass, ["Id"])
+            arcpy.DefineProjection_management(featureclass, coord_system)
 
             finalfeatureclass = os.path.join(output_directory,"Final.shp")
 
-            if not arcpy.Exists(featureclass):
-                arcpy.CreateFeatureclass_management(os.path.dirname(finalfeatureclass), os.path.basename(finalfeatureclass), "Polygon")
-                arcpy.AddField_management(finalfeatureclass, str("FID_Fishne"), "TEXT", "", "", "150")
-                arcpy.AddField_management(finalfeatureclass, "BEARING", "SHORT", "", "", "4")
-                arcpy.DeleteField_management(finalfeatureclass, ["Id"])
-                arcpy.DefineProjection_management(finalfeatureclass, coord_system)
+            arcpy.CreateFeatureclass_management(os.path.dirname(finalfeatureclass), os.path.basename(finalfeatureclass), "Polygon")
+            arcpy.AddField_management(finalfeatureclass, str("FID_Fishne"), "TEXT", "", "", "150")
+            arcpy.AddField_management(finalfeatureclass, "BEARING", "SHORT", "", "", "4")
+            arcpy.DeleteField_management(finalfeatureclass, ["Id"])
+            arcpy.DefineProjection_management(finalfeatureclass, coord_system)
 
             featureclass_in_mem = arcpy.CreateFeatureclass_management("in_memory", "featureclass_in_mem", "Polygon")
             arcpy.AddField_management(featureclass_in_mem, "OriginID", "TEXT", "", "", "150")
             arcpy.AddField_management(featureclass_in_mem, "BEARING", "SHORT", "", "", "4")
             arcpy.DeleteField_management(featureclass_in_mem, ["Id"])
             arcpy.DefineProjection_management(featureclass_in_mem, coord_system)
-
-            arcpy.AddMessage("....now making sectors")
 
             for row in rows:
                 angles = range(0, 360, angle)
@@ -324,38 +291,46 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                     array.removeAll()
 
             arcpy.CopyFeatures_management(r"in_memory\featureclass_in_mem",featureclass)
+        else:
+            arcpy.AddMessage("....using previous spatial bootstrap.")
 
-            arcpy.AddMessage("....now joining with observations")
 
-            arcpy.SpatialJoin_analysis(featureclass, input_points, r"in_memory/points_SpatialJoin", "JOIN_ONE_TO_MANY", "KEEP_ALL", "", "INTERSECT")
+        arcpy.AddMessage("....now joining with observations")
 
-            with arcpy.da.UpdateCursor(r"in_memory/points_SpatialJoin", "Join_Count") as cursor:
-                for row in cursor:
-                    if row[0] == 0:
-                        cursor.deleteRow()
+        query = '"' + str(flag_field) + '" = ' + str(0)
+        arcpy.MakeFeatureLayer_management(input_points, "input_points_query")
+        arcpy.SelectLayerByAttribute_management("input_points_query", "NEW_SELECTION", query)
 
-            arcpy.CopyFeatures_management(r"in_memory/points_SpatialJoin",os.path.join(output_directory, os.path.splitext(os.path.basename(input_points))[0] + "_join.shp"))
+        arcpy.SpatialJoin_analysis(os.path.join(output_directory, "SectorPoly.shp"), "input_points_query", r"in_memory/points_SpatialJoin", "JOIN_ONE_TO_MANY", "KEEP_ALL", "", "INTERSECT")
 
-            arcpy.AddMessage("....calculating statistics")
+        with arcpy.da.UpdateCursor(r"in_memory/points_SpatialJoin", "Join_Count") as cursor:
+            for row in cursor:
+                if row[0] == 0:
+                    cursor.deleteRow()
 
-            stats = [[attribute_process, "MEAN"], [attribute_process, "STD"]]
+        arcpy.CopyFeatures_management(r"in_memory/points_SpatialJoin",os.path.join(output_directory, os.path.splitext(os.path.basename(input_points))[0] + "_join.shp"))
 
+        attribute_process = attribute_process.split(",")
+
+        for i in attribute_process:
+            arcpy.AddMessage("....calculating statistics for " + str(i))
+            stats = [[i, "MEAN"], [i, "STD"]]
             arcpy.Statistics_analysis(r"in_memory/points_SpatialJoin",
-                                      os.path.join(output_directory, os.path.splitext(os.path.basename(input_points))[0] + ".dbf"),
+                                      os.path.join(output_directory, os.path.splitext(os.path.basename(input_points))[0] + "_" + i +".dbf"),
                                       stats, "BEARING")
-            if clean_up == "true":
-                arcpy.Delete_management(os.path.join(output_directory,"Island_Line.shp"))
-                arcpy.CopyFeatures_management(os.path.join(output_directory,"Island_Poly.shp"),os.path.join(output_directory, os.path.splitext(os.path.basename(input_points))[0] + "_poly.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"Island_Poly.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"SectorPoly.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"Fishnet.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"Fishnet_label.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"FishClip.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"FishClipInner.shp"))
-                arcpy.Delete_management(os.path.join(output_directory,"RndPts.shp"))
+        if clean_up == "true":
+            arcpy.Delete_management(os.path.join(output_directory,"Island_Line.shp"))
+            arcpy.CopyFeatures_management(os.path.join(output_directory,"Island_Poly.shp"),os.path.join(output_directory, os.path.splitext(os.path.basename(input_points))[0] + "_poly.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"Island_Poly.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"SectorPoly.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"Fishnet.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"Fishnet_label.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"FishClip.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"FishClipInner.shp"))
+            arcpy.Delete_management(os.path.join(output_directory,"RndPts.shp"))
 
-            arcpy.AddMessage("....completed: " + os.path.splitext(os.path.basename(input_points))[0] + ".")
-
+        arcpy.AddMessage("....completed: " + os.path.splitext(os.path.basename(input_points))[0] + "_" + attribute_process + ".")
+        arcpy.CheckInExtension('Spatial')
         return
 
 def main():

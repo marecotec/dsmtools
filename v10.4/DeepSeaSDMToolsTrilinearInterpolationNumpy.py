@@ -7,7 +7,6 @@ import numpy as np
 import time
 from arcpy import env
 from arcpy.sa import *
-from Includes import error_logging, rename_fields
 import pandas as pd
 from Includes import raster_to_xyz
 
@@ -37,7 +36,7 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                                        direction="Input",
                                        )
         input_bathymetry.value = "F:\Oceanographic_Bathymetry\Raster\GEBCO_2014\Projected\gebco_ocean"
-        #input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Depth_Layer\gebco_null"
+        #input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Why_Edge_Problem\Depth\sml1"
         params.append(input_bathymetry)
 
         input_environment = arcpy.Parameter(name="input_environment",
@@ -66,7 +65,7 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                                        direction="Output",
                                        )
         params.append(output_directory)
-        output_directory.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Output_Sal_Global_Feb"
+        output_directory.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Feb_28"
         return params
 
     def isLicensed(self):
@@ -129,6 +128,7 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
         # Check for Projected coordinate system - IMPORTANT - FAIL if not with warning.
         input_bathymetry_desc = arcpy.Describe(input_bathymetry)
         input_bathymetry_sr = input_bathymetry_desc.spatialReference
+        input_bathymetry_cs = input_bathymetry_desc.meanCellHeight
 
         input_environment0_desc = arcpy.Describe(input_environment_list[0])
         input_environment0_sr = input_environment0_desc.spatialReference
@@ -159,6 +159,8 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
 
         if not os.path.exists(os.path.join(output_directory, "SplitRaster", "Outputs")):
             os.makedirs(os.path.join(output_directory, "SplitRaster", "Outputs"))
+        if not os.path.exists(os.path.join(output_directory, "SplitRaster", "Outputs_Mirror")):
+            os.makedirs(os.path.join(output_directory, "SplitRaster", "Outputs_Mirror"))
 
         env.workspace = os.path.join(output_directory,"SplitRaster")
         input_bathymetry_list = arcpy.ListRasters("sp*", "GRID")
@@ -173,15 +175,14 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
 
             try:
                 input_bathymetry_split = arcpy.Raster(input_bathymetry_split_i)
-
             except:
-                input_bathymerty_split = False
+                arcpy.AddWarning("Unable to read bathymetric layer: " + str(input_bathymetry_split_i))
+                input_bathymetry_split = False
+
 
             if arcpy.Exists(input_bathymetry_split) and not arcpy.Exists(os.path.join(output_directory,
                                                                  "SplitRaster","Outputs",
                                                                  str(input_bathymetry_split) + ".asc")):
-
-
 
                 arcpy.RasterToASCII_conversion(input_bathymetry_split, os.path.join(output_directory,
                                                                  "SplitRaster",
@@ -234,13 +235,21 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                     # 2 Get xyz values needed to build array
                     xy_coords = pd.read_pickle(os.path.join(location, "xy_coords.pkl"))
 
-                    y_min = y_min - input_environment0_cs
-                    y_max = y_max + input_environment0_cs
-                    x_min = x_min - input_environment0_cs
-                    x_max = x_max + input_environment0_cs
+                    y_min = y_min - (input_environment0_cs)
+                    y_max = y_max + (input_environment0_cs)
+                    x_min = x_min - (input_environment0_cs)
+                    x_max = x_max + (input_environment0_cs)
 
                     x_vals = np.unique(xy_coords["x"])
                     y_vals = np.unique(xy_coords["y"])
+
+                    if input_environment0_desc.extent.XMin > x_min and input_environment0_desc.extent.YMin > y_min:
+                        x_min = input_environment0_desc.extent.XMin
+                        y_min = input_environment0_desc.extent.YMin
+                    elif input_environment0_desc.extent.XMin > x_min:
+                        x_min = input_environment0_desc.extent.XMin
+                    elif input_environment0_desc.extent.YMin > y_min:
+                        y_min = input_environment0_desc.extent.YMin
 
                     x_vals = [i for i in x_vals if i > x_min and i < x_max]
                     y_vals = [i for i in y_vals if i > y_min and i < y_max]
@@ -283,20 +292,54 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                                     temp_depth.append(v2)
                                     del v1, v2
                                 counter += 1
+                    if "key2" in locals():
+                        if key2 < key:
+                                v1, v2 = env_file_list[key2 + 1]
+                                temp_name.append(v1)
+                                temp_depth.append(v2)
+                                del v1, v2
+                    else:
+                        key = -1
+                        for t_pair in env_file_list:
+                            key += 1
+                            name, depth = t_pair
+                            if depth >= z_min:
+                                if counter == 1:
+                                    key2 = key
+                                    v1, v2 = env_file_list[key - 1]
+                                    temp_name.append(v1)
+                                    temp_depth.append(v2)
+                                    del v1, v2
+                                counter += 1
 
-                    if key2 < key:
-                            v1, v2 = env_file_list[key2 + 1]
-                            temp_name.append(v1)
-                            temp_depth.append(v2)
-                            del v1, v2
+                        if key2 < key:
+                                v1, v2 = env_file_list[key2 + 1]
+                                temp_name.append(v1)
+                                temp_depth.append(v2)
+                                del v1, v2
 
                     temp_depth_reverse = temp_depth[::-1]
 
                     z_vals = np.unique(np.asarray(temp_depth_reverse, dtype=float))
 
+
                     data = np.array([np.flipud(arcpy.RasterToNumPyArray(os.path.join(location, bname + "%f" % f),
                                                                         arcpy.Point(x_min, y_min), len(x_vals), len(y_vals),
                                                                         nodata_to_value=np.nan)) for f in temp_depth])
+
+                    # print data.shape
+                    # print temp_depth_reverse
+                    # print x_vals
+                    # print y_vals
+                    #
+                    # with file(os.path.join(output_directory, str(input_bathymetry_split_i) + "data_array.txt"), 'w') as outfile:
+                    #     count = 1
+                    #     for slice_2d in data:
+                    #         np.savetxt(outfile, slice_2d)
+                    #         outfile.write("\n\n")
+                    #         myRaster = arcpy.NumPyArrayToRaster(slice_2d, arcpy.Point(x_min, y_min),input_environment0_cs,input_environment0_cs)
+                    #         myRaster.save(os.path.join(output_directory, str(input_bathymetry_split_i) + "data_" + str(count)))
+                    #         count = count + 1
                     data = data.T
                     rgi = RegularGridInterpolator((x_vals, y_vals, z_vals), data, method='linear')
                     return rgi, y_vals_min, y_vals_max, x_vals_min, x_vals_max
@@ -309,6 +352,16 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                     depth_array_max_comp >= depth_array_max
                     arcpy.AddMessage("Building environment value array: " + str(input_bathymetry_split_i))
                     #rgi, y_vals_min, y_vals_max, x_vals_min, x_vals_max = build_env_array(input_environment, environment_name, depth_array_min, depth_array_max,input_bathymetry_extent.YMin, input_bathymetry_extent.YMax, input_bathymetry_extent.XMin, input_bathymetry_extent.XMax)
+
+
+                    # deal with single row/column data
+                    if depth_array_y_min == depth_array_y_max:
+                        depth_array_y_min = depth_array_y_min - input_environment0_cs
+                        depth_array_y_max = depth_array_y_max + input_environment0_cs
+
+                    if depth_array_x_min == depth_array_x_max:
+                        depth_array_x_min = depth_array_x_min - input_environment0_cs
+                        depth_array_x_max = depth_array_x_max + input_environment0_cs
 
                     rgi, y_vals_min, y_vals_max, x_vals_min, x_vals_max = build_env_array(input_environment,
                                                                                           environment_name,
@@ -328,14 +381,19 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                 else:
                     edge = False
 
+                f = open(os.path.join(output_directory, "SplitRaster", "Outputs", "tri_" + str(input_bathymetry_split_i) + ".xyz"), 'w')
+
                 if not edge:
                     for index, row in depth_array.iterrows():
                         if not np.isnan(row["depth"]) and row["depth"] >= 5500.:
                             tri_value_list.append(rgi((row["x"], row["y"], 5499.0)))
+                            f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], row["y"], 5499.0))) + ', Flag 4\n')
                         elif np.isnan(row["depth"]):
                             tri_value_list.append("-9999")
+                            f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + "-9999" + ", Flag 3\n")
                         elif not np.isnan(row["depth"]):
                             tri_value_list.append(rgi((row["x"], row["y"], row["depth"])))
+                            f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], row["y"], row["depth"]))) + ", Flag 2" + '\n')
                 elif edge:
                     # Deal with edge effect
                     for index, row in depth_array.iterrows():
@@ -343,61 +401,89 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
                             #In appropriate space
                             if row["x"] > x_vals_min and row["x"] < x_vals_max and row["y"] > y_vals_min and row["y"] < y_vals_max:
                                 tri_value_list.append(rgi((row["x"], row["y"], 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], row["y"], 5499.0))) + ", OKDeep" + '\n')
                             #Bottom Left
                             elif row["x"] < x_vals_min and row["y"] < y_vals_min:
                                 tri_value_list.append(rgi((x_vals_min, y_vals_min, 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_min, y_vals_min, 5499.0))) + ", BotLeftDeep" + '\n')
                             #Upper Left
                             elif row["x"] < x_vals_min and row["y"] > y_vals_max:
                                 tri_value_list.append(rgi((x_vals_min, y_vals_max, 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], row["y"], 5499.0))) + ", UpLeftDeep" + '\n')
                             #Bottom Right
                             elif row["x"] > x_vals_max and row["y"] < y_vals_min:
                                 tri_value_list.append(rgi((x_vals_max, y_vals_min, 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_max, y_vals_min, 5499.0))) + ", BotRightDeep" + '\n')
                             #Upper Right
                             elif row["x"] > x_vals_max and row["y"] > y_vals_max:
                                 tri_value_list.append(rgi((x_vals_max, y_vals_max, 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_max, y_vals_max, 5499.0))) + ", UpRightDeep" +  '\n')
                             #Top
                             elif row["y"] > y_vals_max:
                                 tri_value_list.append(rgi((row["x"], y_vals_max, 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], y_vals_max, 5499.0))) + ", TopDeep" +  '\n')
                             #Bottom
                             elif row["y"] < y_vals_min:
                                 tri_value_list.append(rgi((row["x"], y_vals_min, 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], y_vals_min, 5499.0))) + ", BotDeep" +  '\n')
                             #Left
                             elif row["x"] < x_vals_min:
                                 tri_value_list.append(rgi((x_vals_min, row["y"], 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_min, row["y"], 5499.0))) + ", LeftDeep" +  '\n')
                             #Right
                             elif row["x"] > x_vals_max:
                                 tri_value_list.append(rgi((x_vals_max, row["y"], 5499.0)))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_max, row["y"], 5499.0))) + ", RightDeep" + '\n')
                         elif np.isnan(row["depth"]):
                             tri_value_list.append("-9999")
+                            f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + "-9999" + ", Flagged 1" + '\n')
                         elif not np.isnan(row["depth"]):
                             #In appropriate space
                             if row["x"] > x_vals_min and row["x"] < x_vals_max and row["y"] > y_vals_min and row["y"] < y_vals_max:
                                 tri_value_list.append(rgi((row["x"], row["y"], row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], row["y"], row["depth"]))) + ", OK, " + str(row["depth"]) + '\n')
                             #Bottom Left
                             elif row["x"] < x_vals_min and row["y"] < y_vals_min:
                                 tri_value_list.append(rgi((x_vals_min, y_vals_min, row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_min, y_vals_min, row["depth"]))) + ", BotLeft" + '\n')
                             #Upper Left
                             elif row["x"] < x_vals_min and row["y"] > y_vals_max:
                                 tri_value_list.append(rgi((x_vals_min, y_vals_max, row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_min, y_vals_max, row["depth"]))) + ", UpLeft" + '\n')
                             #Bottom Right
                             elif row["x"] > x_vals_max and row["y"] < y_vals_min:
                                 tri_value_list.append(rgi((x_vals_max, y_vals_min, row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_max, y_vals_min, row["depth"]))) + ", BotRight" + '\n')
                             #Upper Right
                             elif row["x"] > x_vals_max and row["y"] > y_vals_max:
                                 tri_value_list.append(rgi((x_vals_max, y_vals_max, row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_max, y_vals_max, row["depth"]))) + ", UpRight" + '\n')
                             #Top
                             elif row["y"] > y_vals_max:
                                 tri_value_list.append(rgi((row["x"], y_vals_max, row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], y_vals_max, row["depth"]))) + ", Top" + '\n')
                             #Bottom
                             elif row["y"] < y_vals_min:
                                 tri_value_list.append(rgi((row["x"], y_vals_min, row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((row["x"], y_vals_min, row["depth"]))) + ", Bottom" + '\n')
                             #Left
                             elif row["x"] < x_vals_min:
                                 tri_value_list.append(rgi((x_vals_min, row["y"], row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_min, row["y"], row["depth"]))) + ", Left" + '\n')
                             #Right
                             elif row["x"] > x_vals_max:
                                 tri_value_list.append(rgi((x_vals_max, row["y"], row["depth"])))
+                                f.write(str(row["x"]) + ", " + str(row["y"]) + ", " + str(rgi((x_vals_max, row["y"], row["depth"]))) + ", Right" + '\n')
+                        else:
+                            f.write(str(row["x"]) + ", " + str(row["y"]) + ", 100000" + ', Flag 5\n')
 
+                #f.write("test1: " + str(rgi((-19995505.364188462, -10332272.835461464, -675.0))) + '\n')
+                #f.write("test2: " + str(rgi((-10332272.835461464, -19995505.364188462, -675.0))) + '\n')
+                #f.write("test3: " + str(rgi((-19995505.364188462, -10332272.835461464, 675.0))) + '\n')
+                #f.write("x_vals_min: " + str(x_vals_min) + ", y_vals_min: " + str(y_vals_min) + ", x_vals_max: " + str(x_vals_max) + "y_vals_max: " + str(y_vals_max)+ '\n')
+                #f.write("depths: " + str(depth_array_min) + " " + str(depth_array_max) + '\n')
+                #f.write("test4: " + str(rgi((-10332272.835461464, -19995505.364188462, 675.0))) + '\n')
+                f.close()
 
                 # Get headers
                 with open(os.path.join(output_directory, "SplitRaster",
@@ -429,24 +515,23 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
         counter = 1
 
         for raster_output in output_list:
-            print os.path.join(output_directory, "SplitRaster", "Outputs", "2_" + str(raster_output))
-            arcpy.Mirror_management(in_raster=os.path.join(output_directory, "SplitRaster", "Outputs", raster_output),
-                                    out_raster=os.path.join(output_directory, "SplitRaster", "Outputs", "2_" + str(counter)))
-            arcpy.Delete_management(os.path.join(output_directory, "SplitRaster", "Outputs", raster_output))
+            if not arcpy.Exists(os.path.join(output_directory, "SplitRaster", "Outputs_Mirror", "2_" + str(counter))):
+                arcpy.AddMessage("Mirroring raster: sp" + str(counter))
+                arcpy.Mirror_management(in_raster=os.path.join(output_directory, "SplitRaster", "Outputs", raster_output),
+                                        out_raster=os.path.join(output_directory, "SplitRaster", "Outputs_Mirror", "2_" + str(counter)))
+            else:
+                arcpy.AddMessage("Skipping previously mirrored raster: " + str(input_bathymetry_split_i))
             counter += 1
 
         del output_list
-
+        env.workspace = os.path.join(output_directory, "SplitRaster", "Outputs_Mirror")
         output_list = arcpy.ListRasters("*", "ALL")
-
+        arcpy.AddMessage("Mosaicking " + str(len(output_list)) + " rasters.")
         arcpy.MosaicToNewRaster_management(
             input_rasters=output_list,
-            output_location=os.path.join(output_directory, "SplitRaster", "Outputs"),
-            raster_dataset_name_with_extension="final", coordinate_system_for_the_raster="", pixel_type="32_BIT_FLOAT",
-            cellsize="", number_of_bands="1", mosaic_method="MEAN", mosaic_colormap_mode="MATCH")
-
-        # Replace a layer/table view name with a path to a dataset (which can be a layer file) or create the layer/table view within the script
-        # The following inputs are layers or table views: "iloc_col_rev.tif"
+            output_location=os.path.join(output_directory, "SplitRaster", "Outputs_Mirror"),
+            raster_dataset_name_with_extension="finalraster", coordinate_system_for_the_raster="", pixel_type="32_BIT_FLOAT",
+            cellsize=input_bathymetry_cs, number_of_bands="1", mosaic_method="MEAN", mosaic_colormap_mode="MATCH")
 
         arcpy.AddMessage("Script complete in %s seconds." % (time.clock() - t_start))
         return

@@ -4,6 +4,7 @@ import sys
 sys.dont_write_bytecode = True
 
 from DataToolsBathymetryDownloadGMRT import DataToolsBathymetryDownloadGMRT
+from DataToolsMatlabTableImport import DataToolsMatlabTableImport
 from DataToolsZonalStatisticsMultipleRasters import DataToolsZonalStatisticsMultipleRasters
 from DeepSeaSDMToolsExtractDepths import DeepSeaSDMToolsExtractDepths
 from DeepSeaSDMToolsExtractWOANetCDF import DeepSeaSDMToolsExtractWOANetCDF
