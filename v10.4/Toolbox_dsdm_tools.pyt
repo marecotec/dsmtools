@@ -57,6 +57,7 @@ class Toolbox(object):
                 USE OR OTHER DEALINGS IN THE SOFTWARE."""
         # List of tool classes associated with this toolbox
         self.tools = [DataToolsBathymetryDownloadGMRT,
+                      DataToolsMatlabTableImport,
                       DataToolsZonalStatisticsMultipleRasters,
                       DeepSeaSDMToolsExtractDepths,
                       DeepSeaSDMToolsExtractWOANetCDF,

@@ -12,7 +12,8 @@ class DataToolsMatlabTableImport(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
         self.label = "Matlab Table Import"
-        self.description = """Import Matlab outputs, in the form of a table, first row = longitude, first column = latitude"""
+        self.description = """Import Matlab outputs and export XYZ/ASCII Grid, in the form of a table of values,
+                            first row = longitude, first column = latitude"""
         self.canRunInBackground = True
         self.category = "Data Tools"  # Use your own category here, or an existing one.
 
@@ -28,7 +29,7 @@ class DataToolsMatlabTableImport(object):
                                        parameterType="Required",
                                        direction="Input",
                                        )
-        input_file.value = "E:/2016/Corals/Physical_Data/Conversion/Hawaii_1.dat"
+        input_file.value = "D:/Example_Data/DataToolsMatlabTableImport/Example_Matlab_File.dat"
         params.append(input_file)
 
         return params

@@ -10,7 +10,7 @@ from arcpy.sa import *
 import pandas as pd
 from Includes import raster_to_xyz
 
-class DeepSeaSDMToolsTrilinearInterpolation(object):
+class DeepSeaSDMToolsTrilinearInterpolationNumpy(object):
     """This class has the methods you need to define
        to use your code as an ArcGIS Python Tool."""
 
@@ -538,7 +538,7 @@ class DeepSeaSDMToolsTrilinearInterpolation(object):
 
 
 def main():
-    tool = DeepSeaSDMToolsTrilinearInterpolation()
+    tool = DeepSeaSDMToolsTrilinearInterpolationNumpy()
     tool.execute(tool.getParameterInfo(), None)
 
 if __name__ == '__main__':
