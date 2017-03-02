@@ -32,7 +32,6 @@ class DeepSeaSDMToolsMatchEnvironmentalLayers(object):
         params.append(input_directory)
 
         output_directory = arcpy.Parameter(name="output_directory",
-                                           displayName="Output directory",
                                            datatype="DEWorkspace",
                                            parameterType="Required",  # Required|Optional|Derived
                                            direction="Output",  # Input|Output
@@ -55,7 +54,7 @@ class DeepSeaSDMToolsMatchEnvironmentalLayers(object):
                                            parameterType="Required",  # Required|Optional|Derived
                                            direction="Input",  # Input|Output
                                            )
-        cell_size.value = "1"
+        cell_size.value = "0.1"
         params.append(cell_size)
 
         return params
@@ -87,6 +86,12 @@ class DeepSeaSDMToolsMatchEnvironmentalLayers(object):
         if not os.path.exists(temporary_directory):
             os.makedirs(temporary_directory)
 
+        if not os.path.exists(os.path.join(temporary_directory, "Unmatched_Copy")):
+            os.makedirs(os.path.join(temporary_directory, "Unmatched_Copy"))
+
+        if not os.path.exists(os.path.join(temporary_directory, "tempdir2")):
+            os.makedirs(os.path.join(temporary_directory, "tempdir2"))
+
         # Set Environments
         arcpy.env.workspace = input_directory
         raster_list = arcpy.ListRasters("*")
@@ -101,14 +106,48 @@ class DeepSeaSDMToolsMatchEnvironmentalLayers(object):
         arcpy.env.cellSize = cell_size
         arcpy.env.scratchWorkspace = temporary_directory
 
-        raster_list = arcpy.ListRasters("*")
-        arcpy.env.extent = raster_list[0]
-        coordinate_system = arcpy.Describe(raster_list[0]).spatialReference
+        for raster in raster_list:
+            raster1 = arcpy.sa.Raster(raster)
+            ext = raster1.extent
+
+            cell_size_raster_2 = raster1.meanCellHeight
+            xmin2 = ext.XMin
+            xmax2 = ext.XMax
+            ymin2 = ext.YMin
+            ymax2 = ext.YMax
+
+            xmin = min(xmin2, ext.XMin)
+            ymin = min(ymin2, ext.XMax)
+            xmax = max(xmax2, ext.YMin)
+            ymax = max(ymax2, ext.YMax)
+            cell_size_raster = min(cell_size_raster_2, raster1.meanCellHeight)
+            extent_valid = True
+
+        if extent_valid:
+            arcpy.env.extent = str(xmin) + " " + str(ymin) + " " + str(xmax) + " " + str(ymax)
+            arcpy.AddMessage("Extraction extent is: " + str(arcpy.env.extent))
+        else:
+            arcpy.env.extent = raster_list[0]
+            arcpy.AddMessage("Extraction extent of first input: " + str(arcpy.env.extent))
+
+        if cell_size == cell_size_raster:
+            for raster in raster_list:
+                arcpy.Copy_management(in_data=raster,
+                                      out_data=os.path.join(temporary_directory, "Unmatched_Copy", raster),
+                                      data_type="RasterDataset")
+                arcpy.AddMessage("Cell size requested is same as input rasters.. Proceeding...")
+        else:
+            arcpy.AddMessage("Cell size requested is different as input rasters.. Resampling...")
+            for raster in raster_list:
+                arcpy.Resample_management(in_raster=raster,
+                                          out_raster=os.path.join(temporary_directory, "Unmatched_Copy", raster),
+                                          cell_size=str(cell_size) + " " + str(cell_size), resampling_type="BILINEAR")
+
+
+        coordinate_system = arcpy.Describe(os.path.join(temporary_directory, "Unmatched_Copy", raster_list[0])).spatialReference
         env.outputCoordinateSystem = coordinate_system
 
-        arcpy.AddMessage("Extraction extent is: " + str(arcpy.env.extent))
-
-        arcpy.AddMessage("\nThere are " + str(len(raster_list)) + " rasters to process")
+        arcpy.AddMessage("There are " + str(len(raster_list)) + " rasters to process")
         arcpy.env.workspace = temporary_directory
         arcpy.env.scratchWorkspace = temporary_directory
         counter = 0
@@ -117,21 +156,23 @@ class DeepSeaSDMToolsMatchEnvironmentalLayers(object):
             # List rasters in directory and convert to a constant raster
             for raster in raster_list:
                 counter += 1
-                if not arcpy.Exists(os.path.join(output_directory, raster)):
-                    arcpy.env.mask = os.path.join(input_directory, raster)
-                    constant_raster = CreateConstantRaster(1, "INTEGER", cell_size, "")
-                    constant_raster.save(os.path.join(temporary_directory, raster))
+                if not arcpy.Exists(os.path.join(temporary_directory, raster)):
+                    arcpy.env.extent = os.path.join(temporary_directory, "Unmatched_Copy", raster)
+                    arcpy.env.mask = os.path.join(temporary_directory, "Unmatched_Copy", raster)
+                    arcpy.gp.IsNull_sa(os.path.join(temporary_directory, "Unmatched_Copy", raster), os.path.join(temporary_directory, raster))
+                    arcpy.gp.Con_sa(os.path.join(temporary_directory, raster), "1",
+                                    os.path.join(temporary_directory, "tempdir2", raster), "0", "VALUE = 0")
                     arcpy.env.mask = ""
                 arcpy.AddMessage("Processing " + str(counter) + " of " + str(len(raster_list)))
 
             del raster
 
+            arcpy.env.workspace = os.path.join(temporary_directory, "tempdir2")
             raster_list_2 = arcpy.ListRasters("*")
-
             arcpy.env.mask = ""
 
             arcpy.AddMessage("Calculating sum of all rasters")
-            sum_all_constant = arcpy.gp.CellStatistics_sa(raster_list_2, os.path.join(temporary_directory, "temp1"), "SUM", "DATA")
+            arcpy.gp.CellStatistics_sa(raster_list_2, os.path.join(temporary_directory, "temp1"), "SUM", "DATA")
             count_all_constant = arcpy.GetRasterProperties_management(os.path.join(temporary_directory, "temp1"), "MAXIMUM")
             where_clause = "VALUE < " + str(count_all_constant)
 
@@ -142,20 +183,22 @@ class DeepSeaSDMToolsMatchEnvironmentalLayers(object):
                                              "NO_SIMPLIFY",
                                              field)
 
+            arcpy.env.workspace = os.path.join(temporary_directory, "Unmatched_Copy")
+            raster_list = arcpy.ListRasters("*")
+
             counter = 0
 
             for raster in raster_list:
                 counter += 1
                 mask = os.path.join(temporary_directory, "temp2")
-                # arcpy.env.snapRaster = os.path.join(outDir,"temp2")
+                arcpy.env.snapRaster = os.path.join(temporary_directory, "temp2")
                 arcpy.env.extent = os.path.join(temporary_directory, "temp2.shp")
                 arcpy.env.mask = os.path.join(temporary_directory, "temp2.shp")
 
                 if not arcpy.Exists(os.path.join(output_directory, raster)):
                     arcpy.AddMessage("Now extracting by mask for " + str(counter) + " of " + str(len(raster_list)))
-                    raster_clip = arcpy.sa.ApplyEnvironment(os.path.join(input_directory, raster))
+                    raster_clip = arcpy.sa.ApplyEnvironment(os.path.join(temporary_directory, "Unmatched_Copy", raster))
                     raster_clip.save(os.path.join(output_directory, raster))
-                    arcpy.BuildPyramids_management(os.path.join(output_directory, raster))
             arcpy.AddMessage("Done")
 
         except:

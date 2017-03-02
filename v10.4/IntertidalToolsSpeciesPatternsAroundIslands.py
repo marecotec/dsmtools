@@ -26,7 +26,7 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                                        parameterType="Required",
                                        direction="Input",
                                        )
-        input_line.value = "E:/2016/Corals/IndividualIslands_ByYear_Lines/PAL_2008.shp"
+        input_line.value = "E:/2016/Corals/IndividualIslands_ByYear_Lines/KIN_2008.shp"
         params.append(input_line)
 
         # Input Island Points - Original points that will be sampled by the spatial bootstrap
@@ -36,7 +36,8 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                                        parameterType="Required",
                                        direction="Input",
                                        )
-        input_points.value = "E:/2016/Corals/IndividualIslands_ByYear_Points/PAL_2008.shp"
+        #input_points.value = "E:/2016/Corals/IndividualIslands_ByYear_Points_Env/KIN_2008_NUT_CHL.shp"
+        input_points.value = "E:/2016/Corals/IndividualIslands_ByYear_Points/KIN_2008.shp"
         params.append(input_points)
 
         # Select attribute column for the calculation
@@ -45,8 +46,9 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                                       datatype="Field",
                                       parameterType="Required",
                                       direction="Input")
-        #attribute_process.value = "CORAL,CCA,MACROALGAE"
         attribute_process.value = "CORAL,CCA,MACROALGAE"
+        #attribute_process.value = "Chl_a,NO3_NO2,Temperatur"
+        #attribute_process.value = "NO3_NO2"
         params.append(attribute_process)
 
         # Select attribute column for the calculation
@@ -87,7 +89,7 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
                                         parameterType="Optional",
                                         direction="Output",
                                         )
-        output_directory.value = "E:/2016/Corals/Run/PAL_2008"
+        output_directory.value = "E:/2016/Corals/IndividualIslands_ByYear_GP/KIN_2008"
         params.append(output_directory)
 
         clean_up = arcpy.Parameter(name="clean_up",
@@ -172,7 +174,7 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
             island_area_polygon = sqrt(island_area * 0.1) * 100
 
             arcpy.AddMessage(
-                "....fishnet size is: " + str(island_area_polygon) + " m.")
+                "....fishnet size is: " + str(island_area_polygon) + " m x " + str(island_area_polygon) + " m. Island area is: " + str(island_area) + " km2.")
 
             arcpy.CreateFishnet_management(out_feature_class=os.path.join(output_directory,"Fishnet.shp"),
                                            origin_coord=origin_coord,
@@ -329,7 +331,7 @@ class IntertidalToolsSpeciesPatternsAroundIslands(object):
             arcpy.Delete_management(os.path.join(output_directory,"FishClipInner.shp"))
             arcpy.Delete_management(os.path.join(output_directory,"RndPts.shp"))
 
-        arcpy.AddMessage("....completed: " + os.path.splitext(os.path.basename(input_points))[0] + "_" + attribute_process + ".")
+        arcpy.AddMessage("....completed: " + os.path.splitext(os.path.basename(input_points))[0] + ".")
         arcpy.CheckInExtension('Spatial')
         return
 
