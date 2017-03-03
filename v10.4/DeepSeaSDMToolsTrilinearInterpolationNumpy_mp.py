@@ -545,7 +545,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
             arcpy.SplitRaster_management(in_raster=input_bathymetry,
                                          out_folder=os.path.join(output_directory, "SplitRaster"),
                                          out_base_name="sp", split_method="SIZE_OF_TILE", format="GRID",
-                                         resampling_type="NEAREST", num_rasters="2 2", tile_size="100 100",#"1500 1500",
+                                         resampling_type="NEAREST", num_rasters="2 2", tile_size="1500 1500",
                                          overlap="0",
                                          units="PIXELS", cell_size="", origin="", split_polygon_feature_class="",
                                          clip_type="NONE", template_extent="DEFAULT", nodata_value="#")
