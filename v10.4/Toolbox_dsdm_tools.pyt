@@ -9,8 +9,8 @@ from DataToolsZonalStatisticsMultipleRasters import DataToolsZonalStatisticsMult
 from DeepSeaSDMToolsExtractDepths import DeepSeaSDMToolsExtractDepths
 from DeepSeaSDMToolsExtractWOANetCDF import DeepSeaSDMToolsExtractWOANetCDF
 from DeepSeaSDMToolsMatchEnvironmentalLayers import DeepSeaSDMToolsMatchEnvironmentalLayers
-from DeepSeaSDMToolsTrilinearInterpolation_mp import DeepSeaSDMToolsTrilinearInterpolation_mp
 from DeepSeaSDMToolsTrilinearInterpolationNumpy import DeepSeaSDMToolsTrilinearInterpolationNumpy
+from DeepSeaSDMToolsTrilinearInterpolationNumpy_mp import DeepSeaSDMToolsTrilinearInterpolationNumpy_mp
 from GenericToolsBatchConvertMXERaster import GenericToolsBatchConvertMXERaster
 from GenericToolsBatchConvertRastersASCIIMXE import GenericToolsBatchConvertRastersASCIIMXE
 from GenericToolsBatchProjectRasters import GenericToolsBatchProjectRasters
@@ -62,8 +62,8 @@ class Toolbox(object):
                       DeepSeaSDMToolsExtractDepths,
                       DeepSeaSDMToolsExtractWOANetCDF,
                       DeepSeaSDMToolsMatchEnvironmentalLayers,
-                      DeepSeaSDMToolsTrilinearInterpolation_mp,
                       DeepSeaSDMToolsTrilinearInterpolationNumpy,
+                      DeepSeaSDMToolsTrilinearInterpolationNumpy_mp,
                       GenericToolsBatchConvertMXERaster,
                       GenericToolsBatchConvertRastersASCIIMXE,
                       GenericToolsBatchProjectRasters,

@@ -16,10 +16,10 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy(object):
 
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Calculate northness and eastness from a slope raster"
-        self.description = """Calculate northness and eastness from a slope raster"""
+        self.label = "Calculate trilinearly interpolated environmental layer"
+        self.description = """Calculate trilinearly interpolated environmental layer, works with WOA"""
         self.canRunInBackground = True
-        self.category = "Terrain Tools"  # Use your own category here, or an existing one.
+        self.category = "Deep-sea SDM Tools"
 
     def getParameterInfo(self):
 
@@ -36,7 +36,6 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy(object):
                                        direction="Input",
                                        )
         input_bathymetry.value = "F:\Oceanographic_Bathymetry\Raster\GEBCO_2014\Projected\gebco_ocean"
-        #input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Why_Edge_Problem\Depth\sml1"
         params.append(input_bathymetry)
 
         input_environment = arcpy.Parameter(name="input_environment",
@@ -56,7 +55,6 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy(object):
                                        )
         params.append(environment_name)
         environment_name.value = "s_an"
-        #environment_name.value = "t_an"
 
         output_directory = arcpy.Parameter(name="output_directory",
                                        displayName="Output Directory",
