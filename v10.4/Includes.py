@@ -379,6 +379,8 @@ def raster_to_xyz(raster, raster_name, output, no_data_value):
 
     # combine arrays of coordinates (although array for Y is before X, dstack produces [X, Y] pairs)
     raster_coordinates = np.dstack((raster_coordinates_y, raster_coordinates_x))
+    del raster_coordinates_y, raster_coordinates_x
+    gc.collect()
 
     ##Raster conversion to NumPy Array
     raster_values = arcpy.RasterToNumPyArray(raster)
@@ -395,7 +397,7 @@ def raster_to_xyz(raster, raster_name, output, no_data_value):
         for col in range(0, width):
             out.writerow(raster_values_full[row, col])
 
-    del raster_values, raster_values_full, raster_coordinates, raster_coordinates_y, raster_coordinates_x
+    del raster_values, raster_values_full, raster_coordinates,
     gc.collect()
 
     return coordinates_x, coordinates_y

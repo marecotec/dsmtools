@@ -13,6 +13,7 @@ import multiprocessing
 from Includes import error_logging, rename_fields
 from functools import partial
 
+
 def test(output_directory,
          input_environment_depth,
          input_environment0_cs,
@@ -21,7 +22,6 @@ def test(output_directory,
          input_environment0_cs_x_min,
          input_environment0_cs_y_min,
          input_bathymetry_list):
-
     DeepSeaSDMToolsTrilinearInterpolationNumpy_mp.mpprocess(output_directory,
                                                             input_environment_depth,
                                                             input_environment0_cs,
@@ -30,6 +30,10 @@ def test(output_directory,
                                                             input_environment0_cs_x_min,
                                                             input_environment0_cs_y_min,
                                                             input_bathymetry_list)
+
+
+def mosaic_chunk(output_directory, input_bathymetry_cs, output_list_chunk):
+    DeepSeaSDMToolsTrilinearInterpolationNumpy_mp.mpchunk(output_directory, input_bathymetry_cs, output_list_chunk)
 
 
 class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
@@ -55,7 +59,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Depth_Layer\gebco14"
+        input_bathymetry.value = "D:/sponges/bathymetry/Projected/gebco_ocean"
         params.append(input_bathymetry)
 
         input_environment = arcpy.Parameter(name="input_environment",
@@ -64,7 +68,8 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                             parameterType="Required",
                                             direction="Input",
                                             )
-        input_environment.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Output\Projected"
+        ##        input_environment.value = "D:/sponges/world-ocean-atlas/temperature/extracted/Projected"
+        input_environment.value = "D:/sponges/world-ocean-atlas/dissolvedO2/extracted/Projected"
         params.append(input_environment)
 
         environment_name = arcpy.Parameter(name="environment_name",
@@ -74,7 +79,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            direction="Input",
                                            )
         params.append(environment_name)
-        environment_name.value = "t_an"
+        environment_name.value = "o_an"
 
         output_directory = arcpy.Parameter(name="output_directory",
                                            displayName="Output Directory",
@@ -83,16 +88,16 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            direction="Output",
                                            )
         params.append(output_directory)
-        output_directory.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\Why_Edge_Problem\Output_MP7"
+        output_directory.value = "D:/sponges/trilinear_dissolvedo2/run4"
 
         cpu_cores_used = arcpy.Parameter(name="cpu_cores_used",
-                                           displayName="Number of CPU cores to use",
-                                           datatype="GPString",
-                                           parameterType="Required",
-                                           direction="Output",
-                                           )
+                                         displayName="Number of CPU cores to use",
+                                         datatype="GPString",
+                                         parameterType="Required",
+                                         direction="Output",
+                                         )
         params.append(cpu_cores_used)
-        cpu_cores_used.value = "2"
+        cpu_cores_used.value = "40"
         return params
 
     def isLicensed(self):
@@ -109,17 +114,69 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
         return
 
     @staticmethod
+    def mpchunk(output_directory, input_bathymetry_cs, output_list_chunk):
+        arcpy.AddMessage("Processing chunk: " + str(output_list_chunk[0]))
+        if not arcpy.Exists(
+                os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f", "a")):
+            if not os.path.exists(
+                    os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f")):
+                os.makedirs(
+                    os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f"))
+
+            if not os.path.exists(
+                    os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f",
+                                 "temp")):
+                os.makedirs(os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f",
+                                         "temp"))
+            env.scratchWorkspace = os.path.join(output_directory, "SplitRaster", "Outputs_C",
+                                                str(output_list_chunk[0]) + "_f")
+            env.workspace = os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f")
+
+            counter = 1
+            chunk_list = []
+            for raster_output in output_list_chunk:
+                if not arcpy.Exists(
+                        os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f",
+                                     "temp", str(counter))):
+                    arcpy.Mirror_management(
+                        in_raster=os.path.join(output_directory, "SplitRaster", "Outputs", raster_output),
+                        out_raster=os.path.join(output_directory, "SplitRaster", "Outputs_C",
+                                                str(output_list_chunk[0]) + "_f", "temp", str(counter)))
+                    chunk_list.append(
+                        os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f",
+                                     "temp", str(counter)))
+                counter += 1
+
+            arcpy.MosaicToNewRaster_management(input_rasters=chunk_list,
+                                               output_location=os.path.join(output_directory, "SplitRaster",
+                                                                            "Outputs_C",
+                                                                            str(output_list_chunk[0]) + "_f"),
+                                               raster_dataset_name_with_extension="a",
+                                               coordinate_system_for_the_raster="",
+                                               pixel_type="32_BIT_FLOAT",
+                                               cellsize=input_bathymetry_cs, number_of_bands="1", mosaic_method="MEAN",
+                                               mosaic_colormap_mode="MATCH")
+
+        arcpy.AddMessage("Completed chunk: " + str(output_list_chunk[0]))
+
+    @staticmethod
     def mpprocess(output_directory, input_environment_depth, input_environment0_cs,
-                  input_environment, environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min, input_bathymetry_list):
+                  input_environment, environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min,
+                  input_bathymetry_list):
         arcpy.CheckOutExtension("Spatial")
         depth_array_min_comp = -9999
         depth_array_max_comp = -9999
 
-        env.workspace = os.path.join(output_directory, "SplitRaster")
+        if not os.path.exists(os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_list))):
+            os.makedirs(os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_list)))
+
+        env.workspace = os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_list))
+        env.scratchWorkspace = os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_list))
 
         try:
-            input_bathymetry_split = arcpy.Raster(input_bathymetry_list)
+            input_bathymetry_split = arcpy.Raster(os.path.join(output_directory, "SplitRaster", input_bathymetry_list))
             input_bathymetry_split_i = input_bathymetry_list
+            arcpy.AddMessage("Reading bathymetric layer: " + str(input_bathymetry_list))
         except:
             arcpy.AddWarning("Unable to read bathymetric layer: " + str(input_bathymetry_list))
             input_bathymetry_split = False
@@ -131,12 +188,12 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                                                                       input_bathymetry_split) + ".asc")):
 
             arcpy.RasterToASCII_conversion(input_bathymetry_split, os.path.join(output_directory,
-                                                                                "SplitRaster",
+                                                                                "SplitRaster", "1_Temp",
                                                                                 str(
                                                                                     input_bathymetry_split) + ".asc"))
 
             input_bathymetry_split = arcpy.Raster(os.path.join(output_directory,
-                                                               "SplitRaster",
+                                                               "SplitRaster", "1_Temp",
                                                                str(input_bathymetry_split) + ".asc"))
 
             no_data_value = 349000000.0
@@ -144,12 +201,12 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            input_bathymetry_split)
 
             raster_to_xyz(input_bathymetry_split_2, str(input_bathymetry_split),
-                          os.path.join(output_directory, "SplitRaster"), no_data_value)
+                          os.path.join(output_directory, "SplitRaster", "1_Temp", ), no_data_value)
 
             input_bathymetry_extent = input_bathymetry_split_2.extent
 
             depth_array = pd.read_csv(
-                os.path.join(output_directory, "SplitRaster", str(input_bathymetry_split) + ".yxz"), header=0,
+                os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_split) + ".yxz"), header=0,
                 names=["y", "x", "depth"], sep=" ")
 
             depth_array.loc[depth_array["depth"] == no_data_value, "depth"] = np.nan
@@ -552,8 +609,6 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
 
         if not os.path.exists(os.path.join(output_directory, "SplitRaster", "Outputs")):
             os.makedirs(os.path.join(output_directory, "SplitRaster", "Outputs"))
-        if not os.path.exists(os.path.join(output_directory, "SplitRaster", "Outputs_Mirror")):
-            os.makedirs(os.path.join(output_directory, "SplitRaster", "Outputs_Mirror"))
 
         env.workspace = os.path.join(output_directory, "SplitRaster")
         input_bathymetry_list = arcpy.ListRasters("sp*", "GRID")
@@ -562,75 +617,72 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
 
         arcpy.AddMessage("Will use " + str(cpu_cores_used) + " cores for processing")
 
+        input_bathymetry_list_done = []
+
+        for i in input_bathymetry_list:
+            try:
+                r = arcpy.Raster(os.path.join(output_directory, "SplitRaster", i))
+            except:
+                r = False
+
+            if arcpy.Exists(r) and not arcpy.Exists(os.path.join(output_directory,
+                                                                 "SplitRaster",
+                                                                 "Outputs",
+                                                                 str(i) + ".asc")):
+                input_bathymetry_list_done.append(i)
+                del r
+
+        arcpy.AddMessage("There are " + str(len(input_bathymetry_list_done)) + " depth left to process.")
         pool = multiprocessing.Pool(int(cpu_cores_used))
         func = partial(test, output_directory, input_environment_depth, input_environment0_cs, input_environment,
                        input_environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min)
-        pool.map(func, input_bathymetry_list)
+        pool.map(func, input_bathymetry_list_done)
         pool.close()
-
-        # test(output_directory,
-        #      input_environment_depth,
-        #      input_environment0_cs,
-        #      input_environment,
-        #      input_environment_name,
-        #      input_bathymetry_list):
-        # DeepSeaSDMToolsTrilinearInterpolationNumpy_mp.mpprocess(output_directory,
-        #                                                         input_environment_depth,
-        #                                                         input_environment0_cs,
-        #                                                         input_environment,
-        #                                                         input_environment_name,
-        #                                                         input_bathymetry_list)
-        #
-        # def mpprocess(output_directory, input_environment_depth, input_environment0_cs,
-        #               input_environment, input_environment0_desc, input_environment_name, input_bathymetry_list)
-
-        #
-        # def test(output_directory,
-        #          input_environment_depth,
-        #          input_environment0_cs,
-        #          input_environment,
-        #          input_environment_name,
-        #          input_bathymetry_list):
-        #     DeepSeaSDMToolsTrilinearInterpolationNumpy_mp.mpprocess(output_directory,
-        #                                                             input_environment_depth,
-        #                                                             input_environment0_cs,
-        #                                                             input_environment,
-        #                                                             input_environment_name,
-        #                                                             input_bathymetry_list)
 
         env.workspace = os.path.join(output_directory, "SplitRaster", "Outputs")
         output_list = arcpy.ListRasters("*", "ALL")
 
-        counter = 1
+        if not os.path.exists(os.path.join(output_directory, "SplitRaster", "Outputs_C")):
+            os.makedirs(os.path.join(output_directory, "SplitRaster", "Outputs_C"))
 
-        for raster_output in output_list:
-            if not arcpy.Exists(
-                    os.path.join(output_directory, "SplitRaster", "Outputs_Mirror", "2_" + str(counter))):
-                arcpy.AddMessage("Mirroring raster: sp" + str(counter))
-                arcpy.Mirror_management(
-                    in_raster=os.path.join(output_directory, "SplitRaster", "Outputs", raster_output),
-                    out_raster=os.path.join(output_directory, "SplitRaster", "Outputs_Mirror", "2_" + str(counter)))
-            else:
-                arcpy.AddMessage("Skipping previously mirrored raster.")
-            counter += 1
+        if len(output_list) > 200:
+            output_list_chunk = [output_list[x:x + 20] for x in xrange(0, len(output_list), 20)]
+        else:
+            output_list_chunk = [output_list[x:x + 5] for x in xrange(0, len(output_list), 5)]
 
-        del output_list
-        env.workspace = os.path.join(output_directory, "SplitRaster", "Outputs_Mirror")
-        output_list = arcpy.ListRasters("*", "ALL")
-        arcpy.AddMessage("Mosaicking " + str(len(output_list)) + " rasters.")
+        arcpy.AddMessage("Building pool to mosaic " + str(len(output_list)) + " rasters, " + "in " + str(
+            len(output_list_chunk)) + " chunks.")
+
+        pool2 = multiprocessing.Pool(int(cpu_cores_used))
+        func_mosaic = partial(mosaic_chunk, output_directory, input_bathymetry_cs)
+        pool2.map(func_mosaic, output_list_chunk)
+        pool2.close()
+
+        chunk_list_a = []
+        for chunk in output_list_chunk:
+            if arcpy.Exists(os.path.join(output_directory, "SplitRaster", "Outputs_C", str(chunk[0]) + "_f", "a")):
+                chunk_list_a.append(
+                    os.path.join(output_directory, "SplitRaster", "Outputs_C", str(chunk[0]) + "_f", "a"))
+
+        env.workspace = os.path.join(output_directory, "SplitRaster", "Outputs_C")
+
+        arcpy.AddMessage("Mosaicking " + str(len(chunk_list_a)) + " chunks together.")
+
         arcpy.MosaicToNewRaster_management(
-            input_rasters=output_list,
-            output_location=os.path.join(output_directory, "SplitRaster", "Outputs_Mirror"),
-            raster_dataset_name_with_extension="finalraster", coordinate_system_for_the_raster="",
+            input_rasters=chunk_list_a,
+            output_location=os.path.join(output_directory),
+            raster_dataset_name_with_extension="f", coordinate_system_for_the_raster="",
             pixel_type="32_BIT_FLOAT",
             cellsize=input_bathymetry_cs, number_of_bands="1", mosaic_method="MEAN", mosaic_colormap_mode="MATCH")
 
         arcpy.AddMessage("Script complete in %s seconds." % (time.clock() - t_start))
         return
 
+
 def main():
     tool = DeepSeaSDMToolsTrilinearInterpolationNumpy_mp()
     tool.execute(tool.getParameterInfo(), None)
+
 
 if __name__ == '__main__':
     main()
