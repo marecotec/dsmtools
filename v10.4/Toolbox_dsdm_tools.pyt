@@ -8,6 +8,7 @@ from DataToolsMatlabTableImport import DataToolsMatlabTableImport
 from DataToolsZonalStatisticsMultipleRasters import DataToolsZonalStatisticsMultipleRasters
 from DeepSeaSDMToolsExtractDepths import DeepSeaSDMToolsExtractDepths
 from DeepSeaSDMToolsExtractWOANetCDF import DeepSeaSDMToolsExtractWOANetCDF
+from DeepSeaSDMToolsExtractWOANetCDF_mp import DeepSeaSDMToolsExtractWOANetCDF_mp
 from DeepSeaSDMToolsMatchEnvironmentalLayers import DeepSeaSDMToolsMatchEnvironmentalLayers
 from DeepSeaSDMToolsTrilinearInterpolationNumpy import DeepSeaSDMToolsTrilinearInterpolationNumpy
 from DeepSeaSDMToolsTrilinearInterpolationNumpy_mp import DeepSeaSDMToolsTrilinearInterpolationNumpy_mp
@@ -61,6 +62,7 @@ class Toolbox(object):
                       DataToolsZonalStatisticsMultipleRasters,
                       DeepSeaSDMToolsExtractDepths,
                       DeepSeaSDMToolsExtractWOANetCDF,
+                      DeepSeaSDMToolsExtractWOANetCDF_mp,
                       DeepSeaSDMToolsMatchEnvironmentalLayers,
                       DeepSeaSDMToolsTrilinearInterpolationNumpy,
                       DeepSeaSDMToolsTrilinearInterpolationNumpy_mp,

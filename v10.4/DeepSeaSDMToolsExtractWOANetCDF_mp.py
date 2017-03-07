@@ -44,7 +44,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_woa_netcdf.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Temperature\woa13_decav_t00_04v2.nc"
+        input_woa_netcdf.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Raw_NetCDF\Decadal_Average\woa13_decav_t00_04v2.nc"
         params.append(input_woa_netcdf)
 
         variable_name = arcpy.Parameter(displayName="Variable",
@@ -94,22 +94,13 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
         #extraction_extent.value = "-16 55 -13 57"
         params.append(extraction_extent)
 
-        temporary_directory = arcpy.Parameter(name="temporary_directory",
-                                              displayName="Temporary Directory",
-                                              datatype="DEWorkspace",
-                                              parameterType="Required",
-                                              direction="Output",
-                                              )
-        temporary_directory.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Temperature/run1/temp"
-        params.append(temporary_directory)
-
         output_directory = arcpy.Parameter(name="output_directory",
                                            displayName="Output Directory",
                                            datatype="DEWorkspace",
                                            parameterType="Required",
                                            direction="Output",
                                            )
-        output_directory.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Temperature/run1/"
+        output_directory.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Gridded_Quarter\/"
         params.append(output_directory)
 
         coordinate_system = arcpy.Parameter(name="coordinate_system",
@@ -143,7 +134,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                          direction="Output",
                                          )
         params.append(cpu_cores_used)
-        cpu_cores_used.value = "40"
+        cpu_cores_used.value = "10"
 
         return params
 
@@ -185,113 +176,106 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
     @staticmethod
     def mpprocess(output_directory, variable_name, input_woa_netcdf, interpolation_procedure,
                   interpolation_resolution, coordinate_system, createxyz, depth_range):
+        try:
+            i = depth_range
 
-        i = depth_range
+            arcpy.AddMessage("Processing depth: " + str(int(i)))
 
-        arcpy.AddMessage("Working on " + str(int(i)))
+            # Set some values that we will use to extract data from the NetCDF file
+            out_temp_layer = variable_name[0:4] + str(int(i)) + ".shp"
+            dimensionValues = "depth " + str(int(i))
 
-        # Set some values that we will use to extract data from the NetCDF file
-        out_temp_layer = variable_name[0:4] + str(int(i)) + ".shp"
-        dimensionValues = "depth " + str(int(i))
+            output_dir_geographic = os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)))
+            output_geographic = os.path.join(output_dir_geographic, variable_name[0:4] + str(int(i)))
 
-        if not os.path.exists(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)))):
-            os.makedirs(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i))))
-
-        if not os.path.exists(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i)))):
-            os.makedirs(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i))))
-
-        if not os.path.exists(os.path.join(output_directory, "temp", "Geographic_yxz", variable_name[0:4] + str(int(i)))):
-            os.makedirs(os.path.join(output_directory, "temp", "Geographic_yxz", variable_name[0:4] + str(int(i))))
-
-        if not os.path.exists(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)))):
-            os.makedirs(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i))))
-
-        env.workspace = os.path.join(output_directory, "temp", variable_name[0:4] + str(int(i)))
-
-        # 1 Extract layer to a temporary feature class
-        arcpy.MakeNetCDFFeatureLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name, x_variable="lon",
-                                        y_variable="lat",
-                                        out_feature_layer=out_temp_layer,
-                                        row_dimension="lat;lon",
-                                        z_variable="", m_variable="", dimension_values=dimensionValues,
-                                        value_selection_method="BY_VALUE")
-
-        # 2 Interpolate to higher resolution and 3 save to output directory
-        if interpolation_procedure == "IDW":
-            arcpy.AddMessage("Interpolating " + str(int(i)) + " using IDW")
-            arcpy.gp.Idw_sa(out_temp_layer, variable_name,
-                            os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                            interpolation_resolution, "2", "VARIABLE 10", "")
-        elif interpolation_procedure == "Spline":
-            arcpy.AddMessage("Interpolating " + str(int(i)) + " using Spline")
-            arcpy.CopyFeatures_management(out_temp_layer, os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), "out.shp"))
-            arcpy.gp.Spline_sa(out_temp_layer, variable_name,
-                               os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                               interpolation_resolution, "TENSION", "0.1", "10")
-            arcpy.Delete_management(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), "out.shp"))
-        elif interpolation_procedure == "Kriging":
-            arcpy.AddMessage("Interpolating " + str(int(i)) + " using Ordinary Kriging")
-            arcpy.gp.Kriging_sa(out_temp_layer, variable_name,
-                                os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                                "Spherical " + str(interpolation_resolution), interpolation_resolution,
-                                "VARIABLE 10", "")
-
-        elif interpolation_procedure == "None":
-            arcpy.AddMessage("Making a raster for " + str(int(i)))
-            arcpy.MakeNetCDFRasterLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name,
-                                           x_dimension="lon", y_dimension="lat",
-                                           out_raster_layer=variable_name[0:4] + str(int(i)),
-                                           band_dimension="", dimension_values="",
-                                           value_selection_method="BY_VALUE")
-            arcpy.CopyRaster_management(variable_name[0:4] + str(int(i)),
-                                        os.path.join(output_directory, "temp", "Geographic",
-                                                     variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                                        "", "", "", "NONE", "NONE", "")
-
-        if len(coordinate_system) > 1:
-            arcpy.AddMessage("Reprojecting " + variable_name[0:4] + str(int(i)) + ".")
-            arcpy.ProjectRaster_management(os.path.join(output_directory, "temp", "Geographic",
-                                                     variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                                           os.path.join(output_directory, "temp", "Projected",
-                                                        variable_name[0:4] + str(int(i)),
-                                                        variable_name[0:4] + str(int(i))),
-                                           coordinate_system, "NEAREST", "#", "#", "#", "#")
+            output_dir_projected = os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i)))
+            output_projected = os.path.join(output_dir_projected, variable_name[0:4] + str(int(i)))
 
 
-        if createxyz == "Only Geographic" or createxyz == "Both":
+            if not os.path.exists(output_dir_geographic):
+                os.makedirs(output_dir_geographic)
 
-            raster_to_xyz(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                          variable_name[0:4] + str(int(i)),
-                          os.path.join(output_directory, "temp", "Geographic_yxz", variable_name[0:4] + str(int(i))),
-                          349000000.0)
-            depth = int(filter(str.isdigit, str(i)))
+            if not os.path.exists(output_dir_projected):
+                os.makedirs(output_dir_projected)
 
-            df = pd.read_csv(os.path.join(output_directory, "temp", "Geographic_yxz", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i)) + ".yxz"),
-                             header=0, names=["y", "x", "z"], sep=" ", dtype={"y": np.float64,  "x": np.float64, "z": np.float64})
-            master = df[["x", "y", "z"]].copy()
-            master.columns = ["x", "y", int(depth)]
-            master.to_pickle(os.path.join(output_directory, "temp", "Geographic_yxz", variable_name[0:4] + str(int(i)), "master.pkl"))
-            os.remove(os.path.join(output_directory, "temp", "Geographic_yxz", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i)) + ".yxz"))
-            del df, master
-            gc.collect()
+            env.workspace = os.path.join(output_directory, "temp", variable_name[0:4] + str(int(i)))
+
+            # 1 Extract layer to a temporary feature class
+            arcpy.MakeNetCDFFeatureLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name, x_variable="lon",
+                                            y_variable="lat",
+                                            out_feature_layer=out_temp_layer,
+                                            row_dimension="lat;lon",
+                                            z_variable="", m_variable="", dimension_values=dimensionValues,
+                                            value_selection_method="BY_VALUE")
+
+            # 2 Interpolate to higher resolution and 3 save to output directory
+            if interpolation_procedure == "IDW":
+                status = "Interpolating " + str(int(i)) + " using IDW"
+                arcpy.gp.Idw_sa(out_temp_layer, variable_name, output_geographic,
+                                interpolation_resolution, "2", "VARIABLE 10", "")
+            elif interpolation_procedure == "Spline":
+                status = "Interpolating " + str(int(i)) + " using Spline"
+                arcpy.CopyFeatures_management(out_temp_layer, os.path.join(output_dir_geographic, "out.shp"))
+                arcpy.gp.Spline_sa(out_temp_layer, variable_name, output_geographic,
+                                   interpolation_resolution, "TENSION", "0.1", "10")
+                arcpy.Delete_management(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), "out.shp"))
+            elif interpolation_procedure == "Kriging":
+                status = "Interpolating " + str(int(i)) + " using Ordinary Kriging"
+                arcpy.gp.Kriging_sa(out_temp_layer, variable_name,
+                                    output_geographic,
+                                    "Spherical " + str(interpolation_resolution), interpolation_resolution,
+                                    "VARIABLE 10", "")
+
+            elif interpolation_procedure == "None":
+                status = "Making a raster for " + str(int(i))
+                arcpy.MakeNetCDFRasterLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name,
+                                               x_dimension="lon", y_dimension="lat",
+                                               out_raster_layer=output_geographic,
+                                               band_dimension="", dimension_values="",
+                                               value_selection_method="BY_VALUE")
+
+            if len(coordinate_system) > 1:
+                status = "Reprojecting " + variable_name[0:4] + str(int(i)) + "."
+                arcpy.ProjectRaster_management(output_geographic,
+                                               output_projected,
+                                               coordinate_system, "NEAREST", "#", "#", "#", "#")
 
 
-        if createxyz == "Only Projected" or createxyz == "Both":
-            raster_to_xyz(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i))),
-                          variable_name[0:4] + str(int(i)),
-                          os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i))),
-                          349000000.0)
+            if createxyz == "Only Geographic" or createxyz == "Both":
+                status = "Building geographic xy coords for " + variable_name[0:4] + str(int(i)) + "."
+                raster_to_xyz(output_geographic,
+                              variable_name[0:4] + str(int(i)),
+                              output_dir_geographic,
+                              349000000.0)
 
-            depth = int(filter(str.isdigit, str(i)))
+                df = pd.read_csv(os.path.join(output_dir_geographic, variable_name[0:4] + str(int(i)) + ".yxz"),
+                                 header=0, names=["y", "x", "z"], sep=" ", dtype={"y": np.float32,  "x": np.float32, "z": np.float32})
+                master = df[["x", "y"]].copy()
+                master.columns = ["x", "y"]
+                master = np.round(master, 4)
+                master.to_pickle(os.path.join(output_dir_geographic, "xy_coords.yxz"))
+                del master, df
+                gc.collect()
 
-            df = pd.read_csv(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i)) + ".yxz"),
-                             header=0, names=["y", "x", "z"], sep=" ", dtype={"y": np.float64,  "x": np.float64, "z": np.float64})
-            master = df[["x", "y"]].copy()
-            master.columns = ["x", "y"]
-            master = np.round(master, 4)
-            master.to_pickle(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)), "xy_coords.yxz"))
-            del master, df
-            gc.collect()
+
+            if createxyz == "Only Projected" or createxyz == "Both":
+                status = "Building projected xy coords for " + variable_name[0:4] + str(int(i)) + "."
+                raster_to_xyz(output_projected,
+                              variable_name[0:4] + str(int(i)),
+                              output_dir_projected,
+                              349000000.0)
+
+                df = pd.read_csv(os.path.join(output_dir_projected, variable_name[0:4] + str(int(i)) + ".yxz"),
+                                 header=0, names=["y", "x", "z"], sep=" ", dtype={"y": np.float32,  "x": np.float32, "z": np.float32})
+                master = df[["x", "y"]].copy()
+                master.columns = ["x", "y"]
+                master = np.round(master, 4)
+                master.to_pickle(os.path.join(output_dir_projected, "xy_coords.yxz"))
+                del master, df
+                gc.collect()
+        except:
+            arcpy.AddMessage("Failed on " + str(int(i)) + ",at status: " + str(status))
+            arcpy.AddMessage(arcpy.GetMessages())
 
     def execute(self, parameters, messages):
 
@@ -308,11 +292,10 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
         interpolation_procedure = parameters[3].valueAsText
         interpolation_resolution = parameters[4].valueAsText
         extraction_extent = parameters[5].valueAsText
-        temporary_directory = parameters[6].valueAsText
-        output_directory = parameters[7].valueAsText
-        coordinate_system = parameters[8].valueAsText
-        createxyz = parameters[9].valueAsText
-        cpu_cores_used = parameters[10].valueAsText
+        output_directory = parameters[6].valueAsText
+        coordinate_system = parameters[7].valueAsText
+        createxyz = parameters[8].valueAsText
+        cpu_cores_used = parameters[9].valueAsText
 
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
@@ -323,27 +306,18 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
         if not os.path.exists(os.path.join(output_directory, "Geographic")):
             os.makedirs(os.path.join(output_directory, "Geographic"))
 
-        if not os.path.exists(temporary_directory):
-            os.makedirs(temporary_directory)
-
         arcpy.env.extent = extraction_extent
 
         arcpy.AddMessage("Extracting " + str(input_woa_netcdf) + ".")
 
         # Set environment variables and build other variables for processing
         arcpy.env.mask = ""
-        arcpy.env.workspace = temporary_directory
+        arcpy.env.workspace = output_directory
         depth_range = load_depth_string(depths)
 
-        # Process goes: 1) Convert depth layer to a point file. 2) Interpolate to selected resolution using your selected
-        # interpolation procedure, 3) Save that layer back into a layer with the name of the variable, plus the
-        # actual depth value associated with it, you will end up with a specified direction of n rasters (n = number of
-        # depth layers.
-
-        # First lets give an indication of the magnitude of this analysis
         arcpy.AddMessage("There are " + str(len(depth_range)) + " to process.")
 
-        if cpu_cores_used > multiprocessing.cpu_count():
+        if int(cpu_cores_used) > int(multiprocessing.cpu_count()):
             cpu_cores_used = multiprocessing.cpu_count() - 1
 
         arcpy.AddMessage("Will use " + str(cpu_cores_used) + " cores for processing")
@@ -354,19 +328,29 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
         pool.map(func, depth_range)
         pool.close()
 
+        count = 0
 
         for i in depth_range:
-            if os.path.exists(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i)))):
-                arcpy.CopyRaster_management(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)). variable_name[0:4] + str(int(i))),
-                                            os.path.join(output_directory, "Geographic", variable_name[0:4] + str(int(i))),
-                                            "", "", "", "NONE", "NONE", "")
-            if os.path.exists(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i))), variable_name[0:4] + str(int(i))):
-                arcpy.CopyRaster_management(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i))),
-                                            os.path.join(output_directory, "Projected", variable_name[0:4] + str(int(i))),
-                                            "", "", "", "NONE", "NONE", "")
-            if os.path.exists(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)), "xy_coords.yxz")):
-                copyfile(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)), "xy_coords.yxz"),
-                         os.path.join(output_directory, "Projected"))
+            try:
+                if os.path.exists(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)), variable_name[0:4] + str(int(i)))):
+                    status = "Geographic"
+                    arcpy.CopyRaster_management(os.path.join(output_directory, "temp", "Geographic", variable_name[0:4] + str(int(i)). variable_name[0:4] + str(int(i))),
+                                                os.path.join(output_directory, "Geographic", variable_name[0:4] + str(int(i))),
+                                                "", "", "", "NONE", "NONE", "")
+                if os.path.exists(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i))), variable_name[0:4] + str(int(i))):
+                    status = "Projected"
+                    arcpy.CopyRaster_management(os.path.join(output_directory, "temp", "Projected", variable_name[0:4] + str(int(i))),
+                                                os.path.join(output_directory, "Projected", variable_name[0:4] + str(int(i))),
+                                                "", "", "", "NONE", "NONE", "")
+                if count == 0:
+                    if os.path.exists(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)), "xy_coords.yxz")):
+                        status = "XY Coordinates"
+                        copyfile(os.path.join(output_directory, "temp", "Projected_yxz", variable_name[0:4] + str(int(i)), "xy_coords.yxz"),
+                                 os.path.join(output_directory, "Projected"))
+                        count = 1
+
+            except:
+                arcpy.AddMessage("Issue copying: " + str(status) + "for depth " + str(int(i)))
 
         arcpy.AddMessage("Making pyramids and statistics for outputs")
         arcpy.BuildPyramidsandStatistics_management(in_workspace=os.path.join(output_directory, "Geographic"), include_subdirectories="NONE",
@@ -388,8 +372,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                                         skip_existing="SKIP_EXISTING")
 
 
-
-        arcpy.AddMessage("Script complete in %s seconds." % (time.clock() - t_start))
+        arcpy.AddMessage("Script complete in %s hours." % (time.clock() - t_start) / 3600)
 
         return
 
