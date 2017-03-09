@@ -3,6 +3,7 @@ import sys
 import os
 import arcpy
 from scipy.interpolate import RegularGridInterpolator
+from scipy import interpolate
 import numpy as np
 import time
 from arcpy import env
@@ -21,6 +22,8 @@ def test(output_directory,
          environment_name,
          input_environment0_cs_x_min,
          input_environment0_cs_y_min,
+         input_environment0_cs_x_max,
+         input_environment0_cs_y_max,
          input_bathymetry_list):
     DeepSeaSDMToolsTrilinearInterpolationNumpy_mp.mpprocess(output_directory,
                                                             input_environment_depth,
@@ -29,6 +32,8 @@ def test(output_directory,
                                                             environment_name,
                                                             input_environment0_cs_x_min,
                                                             input_environment0_cs_y_min,
+                                                            input_environment0_cs_x_max,
+                                                            input_environment0_cs_y_max,
                                                             input_bathymetry_list)
 
 
@@ -59,7 +64,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_bathymetry.value = "D:/sponges/bathymetry/Projected/gebco_ocean"
+        input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\March\Bathy\geb_small"
         params.append(input_bathymetry)
 
         input_environment = arcpy.Parameter(name="input_environment",
@@ -69,7 +74,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                             direction="Input",
                                             )
         ##        input_environment.value = "D:/sponges/world-ocean-atlas/temperature/extracted/Projected"
-        input_environment.value = "D:/sponges/world-ocean-atlas/dissolvedO2/extracted/Projected"
+        input_environment.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Output_Sal\Projected"
         params.append(input_environment)
 
         environment_name = arcpy.Parameter(name="environment_name",
@@ -79,16 +84,16 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            direction="Input",
                                            )
         params.append(environment_name)
-        environment_name.value = "o_an"
+        environment_name.value = "s_an"
 
         output_directory = arcpy.Parameter(name="output_directory",
                                            displayName="Output Directory",
-                                           datatype="DEWorkspace",
-                                           parameterType="Required",
-                                           direction="Output",
+                                           datatype="DEFolder",
+                                           parameterType="Optional",
+                                           direction="Input",
                                            )
         params.append(output_directory)
-        output_directory.value = "D:/sponges/trilinear_dissolvedo2/run4"
+        output_directory.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\March\Run13"
 
         cpu_cores_used = arcpy.Parameter(name="cpu_cores_used",
                                          displayName="Number of CPU cores to use",
@@ -97,7 +102,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                          direction="Output",
                                          )
         params.append(cpu_cores_used)
-        cpu_cores_used.value = "40"
+        cpu_cores_used.value = "10"
         return params
 
     def isLicensed(self):
@@ -162,7 +167,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
     @staticmethod
     def mpprocess(output_directory, input_environment_depth, input_environment0_cs,
                   input_environment, environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min,
-                  input_bathymetry_list):
+                  input_environment0_cs_x_max, input_environment0_cs_y_max,input_bathymetry_list):
         arcpy.CheckOutExtension("Spatial")
         depth_array_min_comp = -9999
         depth_array_max_comp = -9999
@@ -251,6 +256,8 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 x_vals = np.unique(xy_coords["x"])
                 y_vals = np.unique(xy_coords["y"])
 
+                print input_environment0_cs_x_max
+
                 if input_environment0_cs_x_min > x_min and input_environment0_cs_y_min > y_min:
                     x_min = input_environment0_cs_x_min
                     y_min = input_environment0_cs_y_min
@@ -259,6 +266,18 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 elif input_environment0_cs_y_min > y_min:
                     y_min = input_environment0_cs_y_min
 
+                if input_environment0_cs_x_max < x_max and input_environment0_cs_y_max < y_max:
+                    x_max = input_environment0_cs_x_max
+                    y_max = input_environment0_cs_y_max
+                    print "here1"
+                elif input_environment0_cs_x_max < x_max:
+                    x_max = input_environment0_cs_x_max
+                    print x_max
+                    print "here2"
+                elif input_environment0_cs_y_max < y_max:
+                    y_max = input_environment0_cs_y_max
+                    print "here3"
+
                 x_vals = [i for i in x_vals if i > x_min and i < x_max]
                 y_vals = [i for i in y_vals if i > y_min and i < y_max]
 
@@ -266,6 +285,8 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 x_vals_max = max(x_vals)  # - input_environment0_cs
                 y_vals_min = min(y_vals)  # + input_environment0_cs
                 y_vals_max = max(y_vals)  # - input_environment0_cs
+
+                print x_vals_max
 
                 temp_name = []
                 temp_depth = []
@@ -330,13 +351,29 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
 
                 z_vals = np.unique(np.asarray(temp_depth_reverse, dtype=float))
 
-                data = np.array([np.flipud(arcpy.RasterToNumPyArray(os.path.join(location, bname + "%f" % f),
-                                                                    arcpy.Point(x_min, y_min), len(x_vals),
-                                                                    len(y_vals),
-                                                                    nodata_to_value=np.nan)) for f in
-                                 temp_depth])
+                def pad(data):
+                    bad_indexes = np.isnan(data)
+                    good_indexes = np.logical_not(bad_indexes)
+                    good_data = data[good_indexes]
+                    interpolated = np.interp(bad_indexes.nonzero()[0], good_indexes.nonzero()[0], good_data)
+                    data[bad_indexes] = interpolated
+                    return data
 
+                data = np.array([np.flipud(pad(arcpy.RasterToNumPyArray(os.path.join(location, bname + "%f" % f),
+                                                                    arcpy.Point(x_min, y_min), len(x_vals),
+                                                                    len(y_vals), nodata_to_value=np.nan))) for f in temp_depth])
                 data = data.T
+
+
+
+                file = open(os.path.join(output_directory, "SplitRaster", "Outputs",
+                                      "env_" + str(input_bathymetry_split_i) + ".csv"), 'w')
+                for x in x_vals:
+                    for y in y_vals:
+                        file.write(str(x) + ", " + str(y) + ", " + '\n')
+
+                file.close()
+
                 rgi = RegularGridInterpolator((x_vals, y_vals, z_vals), data, method='linear')
                 return rgi, y_vals_min, y_vals_max, x_vals_min, x_vals_max
 
@@ -376,11 +413,13 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
             # Check for edge issue
             if depth_array_x_min < x_vals_min or depth_array_x_max > x_vals_max or depth_array_y_min < y_vals_min or depth_array_y_max > y_vals_max:
                 edge = True
+                arcpy.AddMessage(str(input_bathymetry_split_i) + " is edge")
             else:
                 edge = False
+                arcpy.AddMessage(str(input_bathymetry_split_i) + " is not edge")
 
             f = open(os.path.join(output_directory, "SplitRaster", "Outputs",
-                                  "tri_" + str(input_bathymetry_split_i) + ".xyz"), 'w')
+                                  "tri_" + str(input_bathymetry_split_i) + ".csv"), 'w')
 
             if not edge:
                 for index, row in depth_array.iterrows():
@@ -580,8 +619,10 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
         input_environment0_desc = arcpy.Describe(input_environment_list[0])
         input_environment0_sr = input_environment0_desc.spatialReference
         input_environment0_cs = input_environment0_desc.meanCellHeight
-        input_environment0_cs_x_min = input_environment0_desc.extent.XMin
-        input_environment0_cs_y_min = input_environment0_desc.extent.YMin
+        input_environment0_cs_x_min = input_environment0_desc.extent.XMin + (0.5 * input_environment0_cs)
+        input_environment0_cs_y_min = input_environment0_desc.extent.YMin + (0.5 * input_environment0_cs)
+        input_environment0_cs_x_max = input_environment0_desc.extent.XMax - (0.5 * input_environment0_cs)
+        input_environment0_cs_y_max = input_environment0_desc.extent.YMax - (0.5 * input_environment0_cs)
 
         if input_bathymetry_sr.type == "Projected" and input_environment0_sr.type == "Projected":
             arcpy.AddMessage("Both depth and environmental data are in valid projection")
@@ -632,10 +673,14 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 input_bathymetry_list_done.append(i)
                 del r
 
+        python_exe = os.path.join(sys.exec_prefix, 'pythonw.exe')
+        multiprocessing.set_executable(python_exe)
+
         arcpy.AddMessage("There are " + str(len(input_bathymetry_list_done)) + " depth left to process.")
         pool = multiprocessing.Pool(int(cpu_cores_used))
         func = partial(test, output_directory, input_environment_depth, input_environment0_cs, input_environment,
-                       input_environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min)
+                       input_environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min, input_environment0_cs_x_max,
+                       input_environment0_cs_y_max)
         pool.map(func, input_bathymetry_list_done)
         pool.close()
 
