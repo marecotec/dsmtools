@@ -51,7 +51,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_woa_netcdf.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Raw_NetCDF\Decadal_Average\woa13_decav_t00_04v2.nc"
+        input_woa_netcdf.value = "D:\WOA\silicate\woa13_all_i00_01.nc"
         params.append(input_woa_netcdf)
 
         variable_name = arcpy.Parameter(displayName="Variable",
@@ -59,7 +59,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                         datatype="GPString",
                                         parameterType="Required",
                                         direction="Input")
-        variable_name.value = "t_an"
+        variable_name.value = "i_an"
         params.append(variable_name)
 
         depths = arcpy.Parameter(name="depths",
@@ -88,7 +88,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                                    parameterType="Required",
                                                    direction="Input",
                                                    )
-        interpolation_resolution.value = "0.2"
+        interpolation_resolution.value = "0.5"
         params.append(interpolation_resolution)
 
         extraction_extent = arcpy.Parameter(name="extraction_extent",
@@ -106,7 +106,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                                            parameterType="Required",
                                            direction="Output",
                                            )
-        output_directory.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Gridded_Quarter\/"
+        output_directory.value = "D:\WOA/silicate"
         params.append(output_directory)
 
         coordinate_system = arcpy.Parameter(name="coordinate_system",
@@ -184,6 +184,8 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                   interpolation_resolution, coordinate_system, extraction_extent, createxyz, depth_range):
         try:
             i = depth_range
+
+            status = "Started"
 
             arcpy.env.extent = extraction_extent
 
@@ -345,6 +347,7 @@ class DeepSeaSDMToolsExtractWOANetCDF_mp(object):
                        interpolation_resolution, coordinate_system, extraction_extent, createxyz)
         pool.map(func, depth_range)
         pool.close()
+        pool.join()
 
         count = 0
 

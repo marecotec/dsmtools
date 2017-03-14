@@ -113,6 +113,8 @@ class GenericToolsSplitByAttributes(object):
             arcpy.Select_analysis(input_feature, output_feature, "\"" + attribute_1 +
                                   "\" = '" + each_attribute + "'")
 
+
+
             # Now iterate through the second attribute filter
             attribute_2_types = set([row.getValue(attribute_2) for row in arcpy.SearchCursor(output_feature)])
 

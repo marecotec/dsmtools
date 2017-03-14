@@ -14,6 +14,7 @@ from DeepSeaSDMToolsTrilinearInterpolationNumpy import DeepSeaSDMToolsTrilinearI
 from DeepSeaSDMToolsTrilinearInterpolationNumpy_mp import DeepSeaSDMToolsTrilinearInterpolationNumpy_mp
 from GenericToolsBatchConvertMXERaster import GenericToolsBatchConvertMXERaster
 from GenericToolsBatchConvertRastersASCIIMXE import GenericToolsBatchConvertRastersASCIIMXE
+from GenericToolsOverlappingPolygons import GenericToolsOverlappingPolygons
 from GenericToolsBatchProjectRasters import GenericToolsBatchProjectRasters
 from GenericToolsBatchReProjectRasters import GenericToolsBatchReProjectRasters
 from GenericToolsSplitByAttributes import GenericToolsSplitByAttributes
@@ -68,6 +69,7 @@ class Toolbox(object):
                       DeepSeaSDMToolsTrilinearInterpolationNumpy_mp,
                       GenericToolsBatchConvertMXERaster,
                       GenericToolsBatchConvertRastersASCIIMXE,
+                      GenericToolsOverlappingPolygons,
                       GenericToolsBatchProjectRasters,
                       GenericToolsBatchReProjectRasters,
                       GenericToolsSplitByAttributes,

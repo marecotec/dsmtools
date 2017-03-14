@@ -54,7 +54,6 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
 
     def getParameterInfo(self):
 
-        arcpy.env.overwriteOutput = True
 
         params = []
 
@@ -121,6 +120,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
     @staticmethod
     def mpchunk(output_directory, input_bathymetry_cs, output_list_chunk):
         arcpy.AddMessage("Processing chunk: " + str(output_list_chunk[0]))
+        arcpy.env.overwriteOutput = True
         if not arcpy.Exists(
                 os.path.join(output_directory, "SplitRaster", "Outputs_C", str(output_list_chunk[0]) + "_f", "a")):
             if not os.path.exists(
@@ -169,6 +169,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                   input_environment, environment_name, input_environment0_cs_x_min, input_environment0_cs_y_min,
                   input_environment0_cs_x_max, input_environment0_cs_y_max,input_bathymetry_list):
         arcpy.CheckOutExtension("Spatial")
+        arcpy.env.overwriteOutput = True
         depth_array_min_comp = -9999
         depth_array_max_comp = -9999
 
@@ -179,27 +180,23 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
         env.scratchWorkspace = os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_list))
 
         try:
-            input_bathymetry_split = arcpy.Raster(os.path.join(output_directory, "SplitRaster", input_bathymetry_list))
-            input_bathymetry_split_i = input_bathymetry_list
             arcpy.AddMessage("Reading bathymetric layer: " + str(input_bathymetry_list))
+            arcpy.RasterToASCII_conversion(os.path.join(output_directory, "SplitRaster", input_bathymetry_list), os.path.join(output_directory,
+                                                                                "SplitRaster",
+                                                                                str(
+                                                                                    input_bathymetry_list) + ".asc"))
+            input_bathymetry_split = arcpy.Raster( os.path.join(output_directory,
+                                                                                "SplitRaster",
+                                                                                str(
+                                                                                    input_bathymetry_list) + ".asc"))
+            input_bathymetry_split_i = input_bathymetry_list
         except:
             arcpy.AddWarning("Unable to read bathymetric layer: " + str(input_bathymetry_list))
             input_bathymetry_split = False
             input_bathymetry_split_i = False
 
-        if arcpy.Exists(input_bathymetry_split) and not arcpy.Exists(os.path.join(output_directory,
-                                                                                  "SplitRaster", "Outputs",
-                                                                                  str(
-                                                                                      input_bathymetry_split) + ".asc")):
-
-            arcpy.RasterToASCII_conversion(input_bathymetry_split, os.path.join(output_directory,
-                                                                                "SplitRaster", "1_Temp",
-                                                                                str(
-                                                                                    input_bathymetry_split) + ".asc"))
-
-            input_bathymetry_split = arcpy.Raster(os.path.join(output_directory,
-                                                               "SplitRaster", "1_Temp",
-                                                               str(input_bathymetry_split) + ".asc"))
+        if arcpy.Exists(input_bathymetry_split) and not \
+                os.path.exists(os.path.join(output_directory, "SplitRaster", "Outputs", str(input_bathymetry_split) + ".asc")):
 
             no_data_value = 349000000.0
             input_bathymetry_split_2 = Con(IsNull(input_bathymetry_split), no_data_value,
@@ -246,7 +243,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 env_file_list = sorted(zip(env_files, env_values), key=lambda tup: tup[1])
 
                 # 2 Get xyz values needed to build array
-                xy_coords = pd.read_pickle(os.path.join(location, "xy_coords.pkl"))
+                xy_coords = pd.read_pickle(os.path.join(location, "xy_coords.yxz"))
 
                 y_min = y_min - (input_environment0_cs)
                 y_max = y_max + (input_environment0_cs)
@@ -391,12 +388,12 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
 
                 # deal with single row/column data
                 if depth_array_y_min == depth_array_y_max:
-                    depth_array_y_min = depth_array_y_min - input_environment0_cs
-                    depth_array_y_max = depth_array_y_max + input_environment0_cs
+                    depth_array_y_min = depth_array_y_min - (input_environment0_cs * 3)
+                    depth_array_y_max = depth_array_y_max + (input_environment0_cs * 3)
 
                 if depth_array_x_min == depth_array_x_max:
-                    depth_array_x_min = depth_array_x_min - input_environment0_cs
-                    depth_array_x_max = depth_array_x_max + input_environment0_cs
+                    depth_array_x_min = depth_array_x_min - (input_environment0_cs * 3)
+                    depth_array_x_max = depth_array_x_max + (input_environment0_cs * 3)
 
                 rgi, y_vals_min, y_vals_max, x_vals_min, x_vals_max = build_env_array(input_environment,
                                                                                       environment_name,
@@ -662,16 +659,14 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
 
         for i in input_bathymetry_list:
             try:
-                r = arcpy.Raster(os.path.join(output_directory, "SplitRaster", i))
+                r = arcpy.Raster(os.path.join(output_directory, "SplitRaster", str(i)))
             except:
                 r = False
+                arcpy.AddMessage("Issue reading raster " + str(i))
 
-            if arcpy.Exists(r) and not arcpy.Exists(os.path.join(output_directory,
-                                                                 "SplitRaster",
-                                                                 "Outputs",
-                                                                 str(i) + ".asc")):
+            del r
+            if not os.path.exists(os.path.join(output_directory,"SplitRaster","Outputs", str(i) + ".asc")):
                 input_bathymetry_list_done.append(i)
-                del r
 
         python_exe = os.path.join(sys.exec_prefix, 'pythonw.exe')
         multiprocessing.set_executable(python_exe)
@@ -683,6 +678,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                        input_environment0_cs_y_max)
         pool.map(func, input_bathymetry_list_done)
         pool.close()
+        pool.join()
 
         env.workspace = os.path.join(output_directory, "SplitRaster", "Outputs")
         output_list = arcpy.ListRasters("*", "ALL")
@@ -702,6 +698,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
         func_mosaic = partial(mosaic_chunk, output_directory, input_bathymetry_cs)
         pool2.map(func_mosaic, output_list_chunk)
         pool2.close()
+        pool2.join()
 
         chunk_list_a = []
         for chunk in output_list_chunk:
