@@ -18,7 +18,6 @@ class GenericToolsOverlappingPolygons(object):
 
     def getParameterInfo(self):
 
-        # You can define a tool to have no parameters
         params = []
 
         # Input Island Points
@@ -49,7 +48,7 @@ class GenericToolsOverlappingPolygons(object):
                                       parameterType="Required",
                                       direction="Input")
         # Derived parameter
-        polygon_conversion_size.value = "0.05"
+        polygon_conversion_size.value = "0.1"
         params.append(polygon_conversion_size)
 
         # Output feature class
@@ -59,7 +58,7 @@ class GenericToolsOverlappingPolygons(object):
                                         parameterType="Required",  # Required|Optional|Derived
                                         direction="Output",  # Input|Output
                                         )
-        output_directory.value = "D:\Example\GenericToolsOverlappingPolygons\Output_Data"
+        output_directory.value = "D:\Example\GenericToolsOverlappingPolygons\Output_Data2"
 
         # output_points.schema.clone = True
         params.append(output_directory)
@@ -105,29 +104,42 @@ class GenericToolsOverlappingPolygons(object):
 
         count = 1
 
+        arcpy.env.extent = "-180 -90 180 90"
+
         # Output a feature for the parent attribute
         for each_attribute in attribute_1_types:
-
             output_feature = os.path.join(output_directory, "Temp", "poly" + str(count) + ".shp")
             output_raster = os.path.join(output_directory, "Temp", "r" + str(count))
             output_raster_con = os.path.join(output_directory, "Temp", "c" + str(count))
 
-            arcpy.AddMessage("Processing: " + str(output_feature))
+            if not arcpy.Exists(output_feature):
+                try:
 
-            arcpy.Select_analysis(input_feature, output_feature, "\"" + attribute_1 +
-                                  "\" = " + str(each_attribute) + "")
 
-            arcpy.PolygonToRaster_conversion(in_features=output_feature, value_field=attribute_1,
-                                             out_rasterdataset=output_raster,
-                                             cell_assignment="CELL_CENTER", priority_field="NONE",
-                                             cellsize=polygon_conversion_size)
+                    arcpy.AddMessage("Processing: " + str(output_feature))
 
-            arcpy.gp.Con_sa(output_raster, "1", output_raster_con, "", "VALUE >= 0")
+                    arcpy.Select_analysis(input_feature, output_feature, "\"" + attribute_1 +
+                                          "\" = " + str(each_attribute) + "")
+
+                    arcpy.PolygonToRaster_conversion(in_features=output_feature, value_field=attribute_1,
+                                                     out_rasterdataset=output_raster,
+                                                     cell_assignment="CELL_CENTER", priority_field="NONE",
+                                                     cellsize=polygon_conversion_size)
+
+                    arcpy.gp.Con_sa(output_raster, "1", output_raster_con, "", "VALUE >= 0")
+
+                except:
+                    arcpy.AddWarning("Issue with polygon: " + str(os.path.join(output_directory, "Temp", "poly" + str(count) + ".shp")))
+
+            else:
+                arcpy.AddMessage("Skipping: " + str(os.path.join(output_directory, "Temp", "poly" + str(count) + ".shp")))
 
             count = count + 1
 
         arcpy.env.workspace = os.path.join(output_directory, "Temp")
         raster_list = arcpy.ListRasters("c*")
+
+        print len(raster_list)
 
         outCellStatistics = arcpy.sa.CellStatistics(raster_list, "SUM", "DATA")
 
