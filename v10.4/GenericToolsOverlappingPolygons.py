@@ -20,57 +20,46 @@ class GenericToolsOverlappingPolygons(object):
 
         params = []
 
-        # Input Island Points
         input_feature = arcpy.Parameter(name="input_feature",
                                        displayName="Input Feature Class",
                                        datatype="DEFeatureClass",
-                                       parameterType="Required",  # Required|Optional|Derived
-                                       direction="Input",  # Input|Output
+                                       parameterType="Required",
+                                       direction="Input",
                                        )
-        input_feature.value = "D:\Example\GenericToolsOverlappingPolygons\Input_Data\CONESNAILS.shp"
+        input_feature.value = "D:\Example\GenericToolsOverlappingPolygons\Input_Data\Example_Data.shp"
         params.append(input_feature)
 
-        # Select attribute columns for the split
         attribute_1 = arcpy.Parameter(name="attribute_1",
                                       displayName="Attribute 1 to filter (Use ID or FID, or a numerical field)",
                                       datatype="Field",
                                       parameterType="Required",
                                       direction="Input")
-        # Derived parameter
         attribute_1.parameterDependencies = [input_feature.name]
         attribute_1.value = "FID"
         params.append(attribute_1)
 
-        # Select attribute columns for the split
         polygon_conversion_size = arcpy.Parameter(name="polygon_conversion_size",
                                       displayName="Size of polygon conversion (smaller = longer processing time)",
                                       datatype="GPString",
                                       parameterType="Required",
                                       direction="Input")
-        # Derived parameter
         polygon_conversion_size.value = "0.1"
         params.append(polygon_conversion_size)
 
-        # Output feature class
         output_directory = arcpy.Parameter(name="output_directory",
                                         displayName="Output directory",
                                         datatype="DEWorkspace",
-                                        parameterType="Required",  # Required|Optional|Derived
-                                        direction="Output",  # Input|Output
+                                        parameterType="Required",
+                                        direction="Output",
                                         )
-        output_directory.value = "D:\Example\GenericToolsOverlappingPolygons\Output_Data2"
+        output_directory.value = "D:\Example\GenericToolsOverlappingPolygons\Output_Data"
 
-        # output_points.schema.clone = True
         params.append(output_directory)
         return params
 
     def isLicensed(self):
         """Set whether tool is licensed to execute."""
         return True
-
-    #def updateParameters(self, parameters):
-
-        #return
 
     def updateMessages(self, parameters):
         """Modify the messages created by internal validation for each tool
@@ -84,21 +73,16 @@ class GenericToolsOverlappingPolygons(object):
         for param in parameters:
             arcpy.AddMessage("Parameter: %s = %s" % (param.name, param.valueAsText) )
 
-        # See http://resources.arcgis.com/en/help/main/10.2/index.html#//018z00000063000000
         input_feature = parameters[0].valueAsText
         attribute_1 = parameters[1].valueAsText
         polygon_conversion_size = parameters[2].valueAsText
         output_directory = parameters[3].valueAsText
 
-        # Make output directory if it does not exist
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
         if not os.path.exists(os.path.join(output_directory, "Temp")):
             os.makedirs(os.path.join(output_directory, "Temp"))
-
-        # Read through the attribute table to create a list of unique attributes, start with parent
-        # aka Attribute 1
 
         attribute_1_types = set([row.getValue(attribute_1) for row in arcpy.SearchCursor(input_feature)])
 
@@ -106,7 +90,6 @@ class GenericToolsOverlappingPolygons(object):
 
         arcpy.env.extent = "-180 -90 180 90"
 
-        # Output a feature for the parent attribute
         for each_attribute in attribute_1_types:
             output_feature = os.path.join(output_directory, "Temp", "poly" + str(count) + ".shp")
             output_raster = os.path.join(output_directory, "Temp", "r" + str(count))
@@ -139,7 +122,7 @@ class GenericToolsOverlappingPolygons(object):
         arcpy.env.workspace = os.path.join(output_directory, "Temp")
         raster_list = arcpy.ListRasters("c*")
 
-        print len(raster_list)
+        arcpy.AddMessage("Summing " + str(len(raster_list)) + " rasters.")
 
         outCellStatistics = arcpy.sa.CellStatistics(raster_list, "SUM", "DATA")
 

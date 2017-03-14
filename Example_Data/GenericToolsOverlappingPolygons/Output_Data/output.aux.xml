@@ -1,0 +1,13 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="DataType">Generic</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>c1</Description>
+    <NoDataValue>-2.14748364800000E+009</NoDataValue>
+    <Metadata>
+      <MDI key="BandName">c1</MDI>
+      <MDI key="RepresentationType">ATHEMATIC</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>
