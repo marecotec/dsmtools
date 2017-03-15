@@ -63,7 +63,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\March\Bathy\geb_small"
+        input_bathymetry.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\gebco14sml"
         params.append(input_bathymetry)
 
         input_environment = arcpy.Parameter(name="input_environment",
@@ -73,7 +73,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                             direction="Input",
                                             )
         ##        input_environment.value = "D:/sponges/world-ocean-atlas/temperature/extracted/Projected"
-        input_environment.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Output_Sal\Projected"
+        input_environment.value = "D:\Example\DeepSeaSDMToolsExtractWOANetCDF\Output\Projected"
         params.append(input_environment)
 
         environment_name = arcpy.Parameter(name="environment_name",
@@ -83,7 +83,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            direction="Input",
                                            )
         params.append(environment_name)
-        environment_name.value = "s_an"
+        environment_name.value = "t_an"
 
         output_directory = arcpy.Parameter(name="output_directory",
                                            displayName="Output Directory",
@@ -92,7 +92,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                            direction="Input",
                                            )
         params.append(output_directory)
-        output_directory.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\March\Run13"
+        output_directory.value = "D:\Example\DeepSeaSDMToolsTrilinearInterpolation\TRI"
 
         cpu_cores_used = arcpy.Parameter(name="cpu_cores_used",
                                          displayName="Number of CPU cores to use",
@@ -101,7 +101,7 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                                          direction="Output",
                                          )
         params.append(cpu_cores_used)
-        cpu_cores_used.value = "10"
+        cpu_cores_used.value = "1"
         return params
 
     def isLicensed(self):
@@ -208,8 +208,10 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
             input_bathymetry_extent = input_bathymetry_split_2.extent
 
             depth_array = pd.read_csv(
-                os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_split) + ".yxz"), header=0,
+                os.path.join(output_directory, "SplitRaster", "1_Temp", str(input_bathymetry_split) + ".yxz"), header=None,
                 names=["y", "x", "depth"], sep=" ")
+
+            print depth_array.shape
 
             depth_array.loc[depth_array["depth"] == no_data_value, "depth"] = np.nan
 
@@ -253,8 +255,6 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 x_vals = np.unique(xy_coords["x"])
                 y_vals = np.unique(xy_coords["y"])
 
-                print input_environment0_cs_x_max
-
                 if input_environment0_cs_x_min > x_min and input_environment0_cs_y_min > y_min:
                     x_min = input_environment0_cs_x_min
                     y_min = input_environment0_cs_y_min
@@ -266,14 +266,10 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 if input_environment0_cs_x_max < x_max and input_environment0_cs_y_max < y_max:
                     x_max = input_environment0_cs_x_max
                     y_max = input_environment0_cs_y_max
-                    print "here1"
                 elif input_environment0_cs_x_max < x_max:
                     x_max = input_environment0_cs_x_max
-                    print x_max
-                    print "here2"
                 elif input_environment0_cs_y_max < y_max:
                     y_max = input_environment0_cs_y_max
-                    print "here3"
 
                 x_vals = [i for i in x_vals if i > x_min and i < x_max]
                 y_vals = [i for i in y_vals if i > y_min and i < y_max]
@@ -283,7 +279,18 @@ class DeepSeaSDMToolsTrilinearInterpolationNumpy_mp(object):
                 y_vals_min = min(y_vals)  # + input_environment0_cs
                 y_vals_max = max(y_vals)  # - input_environment0_cs
 
-                print x_vals_max
+                print y_vals_min
+                print y_vals_max
+
+                if y_vals_min == y_vals_max:
+                    y_vals = np.unique(xy_coords["y"])
+                    y_min = y_vals_min - (input_environment0_cs * 3)
+                    y_vals = [i for i in y_vals if i > y_min and i < y_max]
+                    y_vals_min = min(y_vals)  # + input_environment0_cs
+                    y_vals_max = max(y_vals)  # - input_environment0_cs
+
+                print y_vals_min
+                print y_vals_max
 
                 temp_name = []
                 temp_depth = []
