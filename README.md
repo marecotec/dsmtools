@@ -1,7 +1,7 @@
 # Deep-sea Modelling Tools (dsmtools)
 #### ArcGIS Python Toolbox version 10 containing a series of tools used for working with ocean data.
 
-The scripts in this toolbox underpin much of the research my team has done into distribution modelling for deep-sea species, fetch calculations, and some other code working with ocean data. These tools can be used for a variety of different purposes. I do warn you that the have relatively little protection against errors, don't catch problems very well and are abysmally commented, but I do have some developing notes in the [wiki](https://github.com/marbiouk/dsmtools/wiki).
+<img align="right" src="https://cdn.marecotec.com/dsm-tools.png">The scripts in this toolbox underpin much of the research my team has done into distribution modelling for deep-sea species, fetch calculations, and some other code working with ocean data. These tools can be used for a variety of different purposes. I do warn you that the have relatively little protection against errors, don't catch problems very well and are abysmally commented, but I do have some developing notes in the [wiki](https://github.com/marbiouk/dsmtools/wiki).
 
 The tools are largely maintained by Andy Davies of Bangor University. All tools are released under the MIT License, and no warranty is implied.
 
