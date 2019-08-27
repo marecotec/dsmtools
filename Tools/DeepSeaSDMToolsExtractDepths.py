@@ -13,7 +13,7 @@ class DeepSeaSDMToolsExtractDepths(object):
        to use your code as an ArcGIS Python Tool."""
 
     def __init__(self):
-        self.label = "Extract the depths from the bathymetric layer you insert"
+        self.label = "Extract the depths from the bathymetric layer you insertExtract the depths from the bathymetric layer you insert"
         self.description = """To use the cookie cutting approach of Davies & Guinotte (2011), we
         first need to extract the bathymetric layers from our target bathymetry
         to match those of the source environmental variables.

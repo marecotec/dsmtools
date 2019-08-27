@@ -37,7 +37,6 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                            parameterType="Required",
                                            direction="Input",
                                            )
-        input_woa_netcdf.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Raw_NetCDF\Decadal_Average\woa13_decav_t00_04v2.nc"
         params.append(input_woa_netcdf)
 
         variable_name = arcpy.Parameter(displayName="Variable",
@@ -45,16 +44,35 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                         datatype="GPString",
                                         parameterType="Required",
                                         direction="Input")
-        variable_name.value = "t_an"
         params.append(variable_name)
 
+        lat_name = arcpy.Parameter(displayName="Latitude Name",
+                                        name="lat_name",
+                                        datatype="GPString",
+                                        parameterType="Required",
+                                        direction="Input")
+        params.append(lat_name)
+
+        lon_name = arcpy.Parameter(displayName="Longitude Name",
+                                        name="lon_name",
+                                        datatype="GPString",
+                                        parameterType="Required",
+                                        direction="Input")
+        params.append(lon_name)
+
+        depth_name = arcpy.Parameter(displayName="Depth Name",
+                                        name="depth_name",
+                                        datatype="GPString",
+                                        parameterType="Required",
+                                        direction="Input")
+        params.append(depth_name)
+
         depths = arcpy.Parameter(name="depths",
-                                 displayName="Select depths (WOA13v2, WOA05, Steinacher or Custom (in CSV style)",
+                                 displayName="Select depths (WOA05-33 levels; WOA13v2 or WOA18-102 Levels; Steinacher or Custom (as CSV)",
                                  datatype="GPString",
                                  parameterType="Required",
                                  direction="Input",
                                  )
-        depths.value = "WOA13v2"
         params.append(depths)
 
         interpolation_procedure = arcpy.Parameter(name="interpolation_procedure",
@@ -65,7 +83,6 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                                   )
         interpolation_procedure.filter.type = "ValueList"
         interpolation_procedure.filter.list = ["IDW", "Spline", "Kriging", "None"]
-        interpolation_procedure.value = "Spline"
         params.append(interpolation_procedure)
 
         interpolation_resolution = arcpy.Parameter(name="interpolation_resolution",
@@ -84,25 +101,22 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                             direction="Input",
                                             )
         extraction_extent.value = "-181 -91 181 91"
-        #extraction_extent.value = "-16 55 -13 57"
         params.append(extraction_extent)
 
         temporary_directory = arcpy.Parameter(name="temporary_directory",
                                               displayName="Temporary Directory",
-                                              datatype="DEWorkspace",
+                                              datatype="DEFolder",
                                               parameterType="Required",
                                               direction="Output",
                                               )
-        temporary_directory.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Gridded_Quarter\Temp/"
         params.append(temporary_directory)
 
         output_directory = arcpy.Parameter(name="output_directory",
                                            displayName="Output Directory",
-                                           datatype="DEWorkspace",
+                                           datatype="DEFolder",
                                            parameterType="Required",
                                            direction="Output",
                                            )
-        output_directory.value = "G:\Oceanographic_Data\Temperature\WOA13v2\Gridded_Quarter\/"
         params.append(output_directory)
 
         coordinate_system = arcpy.Parameter(name="coordinate_system",
@@ -111,11 +125,6 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                             parameterType="Optional",
                                             direction="Input",
                                             )
-        coordinate_system.value = "PROJCS['World_Mercator',GEOGCS['GCS_WGS_1984',DATUM['D_WGS_1984'," \
-                                  "SPHEROID['WGS_1984',6378137.0,298.257223563]],PRIMEM['Greenwich',0.0]," \
-                                  "UNIT['Degree',0.0174532925199433]],PROJECTION['Mercator'],PARAMETER['False_Easting'," \
-                                  "0.0],PARAMETER['False_Northing',0.0],PARAMETER['Central_Meridian',0.0]," \
-                                  "PARAMETER['Standard_Parallel_1',0.0],UNIT['Meter',1.0]]"
         params.append(coordinate_system)
 
         createxyz = arcpy.Parameter(name="createxyz",
@@ -141,8 +150,10 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
             # Making sure that the layers source is a netCDF file
             if NetCDFFile.isNetCDF(netCDFSource):
                 netCDFFile = NetCDFFile(netCDFSource)
-                variables = netCDFFile.getVariables()
-                parameters[1].filter.list = variables
+                parameters[1].filter.list = netCDFFile.getVariables()
+                parameters[2].filter.list = netCDFFile.getLatDimension()
+                parameters[3].filter.list = netCDFFile.getLonDimension()
+                parameters[4].filter.list = netCDFFile.getDimensions()
         return
 
     def isLicensed(self):
@@ -177,14 +188,17 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
 
         input_woa_netcdf = parameters[0].valueAsText
         variable_name = parameters[1].valueAsText
-        depths = parameters[2].valueAsText
-        interpolation_procedure = parameters[3].valueAsText
-        interpolation_resolution = parameters[4].valueAsText
-        extraction_extent = parameters[5].valueAsText
-        temporary_directory = parameters[6].valueAsText
-        output_directory = parameters[7].valueAsText
-        coordinate_system = parameters[8].valueAsText
-        createxyz = parameters[9].valueAsText
+        lat_name = parameters[2].valueAsText
+        lon_name = parameters[3].valueAsText
+        depth_name = parameters[4].valueAsText
+        depths = parameters[5].valueAsText
+        interpolation_procedure = parameters[6].valueAsText
+        interpolation_resolution = parameters[7].valueAsText
+        extraction_extent = parameters[8].valueAsText
+        temporary_directory = parameters[9].valueAsText
+        output_directory = parameters[10].valueAsText
+        coordinate_system = parameters[11].valueAsText
+        createxyz = parameters[12].valueAsText
 
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
@@ -222,15 +236,17 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
             arcpy.AddMessage("Working on " + str(int(i)))
 
             # Set some values that we will use to extract data from the NetCDF file
-            out_temp_layer = variable_name[0:4] + str(int(i)) + ".shp"
+            out_temp_layer = os.path.join(output_directory, "out.shp")
 
-            dimensionValues = "depth " + str(int(i))
+            dimensionValues = str(depth_name) + " " + str(int(i))
+
+            arcpy.env.outputCoordinateSystem = arcpy.SpatialReference(4326)
 
             # 1 Extract layer to a temporary feature class
-            arcpy.MakeNetCDFFeatureLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name, x_variable="lon",
-                                            y_variable="lat",
+            arcpy.MakeNetCDFFeatureLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name, x_variable=str(lon_name),
+                                            y_variable=str(lat_name),
                                             out_feature_layer=out_temp_layer,
-                                            row_dimension="lat;lon",
+                                            row_dimension=str(lat_name) + ";" + str(lon_name),
                                             z_variable="", m_variable="", dimension_values=dimensionValues,
                                             value_selection_method="BY_VALUE")
 
@@ -242,7 +258,6 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                 interpolation_resolution, "2", "VARIABLE 10", "")
             elif interpolation_procedure == "Spline":
                 arcpy.AddMessage("Interpolating " + str(int(i)) + " using Spline")
-                arcpy.CopyFeatures_management(out_temp_layer, os.path.join(output_directory, "out.shp"))
                 arcpy.gp.Spline_sa(out_temp_layer, variable_name,
                                    os.path.join(output_directory, "Geographic", variable_name[0:4] + str(int(i))),
                                    interpolation_resolution, "TENSION", "0.1", "10")
@@ -256,7 +271,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
             elif interpolation_procedure == "None":
                 arcpy.AddMessage("Making a raster for " + str(int(i)))
                 arcpy.MakeNetCDFRasterLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name,
-                                               x_dimension="lon", y_dimension="lat",
+                                               x_dimension=lon_name, y_dimension=lat_name,
                                                out_raster_layer=variable_name[0:4] + str(int(i)),
                                                band_dimension="", dimension_values="",
                                                value_selection_method="BY_VALUE")
