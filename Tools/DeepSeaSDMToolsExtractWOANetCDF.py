@@ -73,7 +73,10 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                  parameterType="Required",
                                  direction="Input",
                                  )
+        depths.filter.type = "ValueList"
+        depths.filter.list = ["WOA05", "WOA13v2", "WOA18", "Steinacher", "Custom-just replace this field"]
         params.append(depths)
+
 
         interpolation_procedure = arcpy.Parameter(name="interpolation_procedure",
                                                   displayName="Select interpolation procedure",
