@@ -151,8 +151,8 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
             if NetCDFFile.isNetCDF(netCDFSource):
                 netCDFFile = NetCDFFile(netCDFSource)
                 parameters[1].filter.list = netCDFFile.getVariables()
-                parameters[2].filter.list = netCDFFile.getLatDimension()
-                parameters[3].filter.list = netCDFFile.getLonDimension()
+                parameters[2].value = netCDFFile.getLatDimension()
+                parameters[3].value = netCDFFile.getLonDimension()
                 parameters[4].filter.list = netCDFFile.getDimensions()
         return
 
