@@ -73,8 +73,6 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                  parameterType="Required",
                                  direction="Input",
                                  )
-        depths.filter.type = "ValueList"
-        depths.filter.list = ["WOA05", "WOA13v2", "WOA18", "Steinacher", "Custom-just replace this field"]
         params.append(depths)
 
 
@@ -85,7 +83,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                                   direction="Input",
                                                   )
         interpolation_procedure.filter.type = "ValueList"
-        interpolation_procedure.filter.list = ["IDW", "Spline", "Kriging", "None"]
+        interpolation_procedure.filter.list = ["IDW", "Spline", "Kriging", "Natural Neighbor", "None"]
         params.append(interpolation_procedure)
 
         interpolation_resolution = arcpy.Parameter(name="interpolation_resolution",
@@ -230,7 +228,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
         # depth layers.
 
         # First lets give an indication of the magnitude of this analysis
-        arcpy.AddMessage("There are " + str(len(depth_range)) + " to process.")
+        arcpy.AddMessage("There are " + str(len(depth_range)) + " depths to process.")
 
         count_geo = 0
         count_proj = 0
