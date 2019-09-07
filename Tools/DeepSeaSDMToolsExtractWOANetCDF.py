@@ -269,6 +269,12 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                     os.path.join(output_directory, "Geographic", variable_name[0:4] + str(int(i))),
                                     "Spherical " + str(interpolation_resolution), interpolation_resolution,
                                     "VARIABLE 10", "")
+
+            elif interpolation_procedure == "Natural Neighbor":
+                arcpy.AddMessage("Interpolating " + str(int(i)) + " using Natural Neighbor")
+                arcpy.NaturalNeighbor_3d(out_temp_layer, variable_name,
+                                         os.path.join(output_directory, "Geographic", variable_name[0:4] + str(int(i))),
+                                         interpolation_resolution)
             elif interpolation_procedure == "None":
                 arcpy.AddMessage("Making a raster for " + str(int(i)))
                 arcpy.MakeNetCDFRasterLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name,
