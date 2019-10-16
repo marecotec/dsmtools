@@ -83,7 +83,7 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                                                   direction="Input",
                                                   )
         interpolation_procedure.filter.type = "ValueList"
-        interpolation_procedure.filter.list = ["IDW", "Spline", "Kriging", "Natural Neighbor", "None"]
+        interpolation_procedure.filter.list = ["IDW", "Spline", "Kriging", "Natural Neighbor", "Natural Neighbor and IDW", "None"]
         params.append(interpolation_procedure)
 
         interpolation_resolution = arcpy.Parameter(name="interpolation_resolution",
@@ -275,6 +275,34 @@ class DeepSeaSDMToolsExtractWOANetCDF(object):
                 arcpy.NaturalNeighbor_3d(out_temp_layer, variable_name,
                                          os.path.join(output_directory, "Geographic", variable_name[0:4] + str(int(i))),
                                          interpolation_resolution)
+
+            elif interpolation_procedure == "Natural Neighbor and IDW":
+                arcpy.AddMessage("Interpolating " + str(int(i)) + " using Natural Neighbor and IDW")
+
+                if not os.path.exists(os.path.join(output_directory, "temp", "idw")):
+                    os.makedirs(os.path.join(output_directory, "temp", "idw"))
+
+                if not os.path.exists(os.path.join(output_directory, "temp", "nat")):
+                    os.makedirs(os.path.join(output_directory, "temp", "nat"))
+
+                arcpy.NaturalNeighbor_3d(out_temp_layer, variable_name,
+                                         os.path.join(output_directory, "temp", "nat", variable_name[0:4] + str(int(i))),
+                                         interpolation_resolution)
+
+                arcpy.gp.Idw_sa(out_temp_layer, variable_name,
+                                os.path.join(output_directory, "temp", "idw", variable_name[0:4] + str(int(i))),
+                                interpolation_resolution, "2", "VARIABLE 10", "")
+
+                input_rasters = [os.path.join(output_directory, "temp", "nat", variable_name[0:4] + str(int(i))),
+                                 os.path.join(output_directory, "temp", "idw", variable_name[0:4] + str(int(i)))]
+
+                arcpy.MosaicToNewRaster_management(input_rasters=input_rasters,
+                                                   output_location=os.path.join(out_dir, "Geographic"),
+                                                   raster_dataset_name_with_extension=str(i),
+                                                   coordinate_system_for_the_raster="",
+                                                   pixel_type="8_BIT_UNSIGNED", cellsize="",
+                                                   number_of_bands="1", mosaic_method="FIRST", mosaic_colormap_mode="FIRST")
+
             elif interpolation_procedure == "None":
                 arcpy.AddMessage("Making a raster for " + str(int(i)))
                 arcpy.MakeNetCDFRasterLayer_md(in_netCDF_file=input_woa_netcdf, variable=variable_name,
